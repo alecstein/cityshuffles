@@ -144,6 +144,26 @@ def start_conversation_for_booking(vendor_booking, sender=None):
     return conversation
 
 
+def open_conversation_for_booking(vendor_booking):
+    """Open a booking's chat without sending the automatic welcome message."""
+    guest = Guest.objects.select_related("contact").get(pk=vendor_booking.booking_id)
+    return open_conversation_for_guest(guest)
+
+
+def open_conversation_for_guest(guest):
+    """Open a guest's chat without sending the automatic welcome message."""
+    guest = Guest.objects.select_related("contact").get(pk=guest.pk)
+    channel = choose_welcome_channel(guest)
+    if not channel:
+        return None
+
+    conversation, _created = Conversation.objects.get_or_create(
+        contact=guest.contact,
+        channel=channel,
+    )
+    return conversation
+
+
 def start_conversation_for_guest(guest, sender=None, source_vendor=""):
     """Start a guest's first chat, or return its existing default channel."""
     success = send_welcome_for_guest(

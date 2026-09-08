@@ -1,0 +1,23 @@
+<span class="new-booking-actions">
+    {% if vendor_booking.booking.chat_started and vendor_booking.booking.conversation %}
+        {% include "bookings/partials/chat_bubble.html" with chat_conversation=vendor_booking.booking.conversation chat_guest_name=vendor_booking.booking.full_name chat_extra_class="new-booking-chat-action" only %}
+    {% else %}
+        {% if vendor_booking.booking.contact.phone_number or vendor_booking.booking.contact.email %}
+        <form method="post" action="{% url 'bookings:open_booking_conversation' vendor_booking.pk %}" class="chat-action-form new-booking-chat-form">
+            {% csrf_token %}
+            {% include "bookings/partials/chat_bubble.html" with chat_guest_name=vendor_booking.booking.full_name only %}
+        </form>
+        <form method="post" action="{% url 'bookings:start_booking_conversation' vendor_booking.pk %}" class="chat-action-form new-booking-welcome-form">
+            {% csrf_token %}
+            <button type="submit" class="jump-link jump-link-start welcome-button" aria-label="Send welcome to {{ vendor_booking.booking.full_name }}" title="Send welcome message">Greet</button>
+        </form>
+        {% else %}
+        {% include "bookings/partials/chat_bubble.html" with chat_guest_name=vendor_booking.booking.full_name chat_disabled=True chat_extra_class="new-booking-chat-action" only %}
+        <button type="button" class="jump-link jump-link-disabled new-booking-welcome-action welcome-button" disabled aria-label="Send welcome to {{ vendor_booking.booking.full_name }} (no contact information)" title="Add a phone number or email address to send the welcome message">Greet</button>
+        {% endif %}
+    {% endif %}
+    <form method="post" action="{% url 'bookings:ignore_new_booking' vendor_booking.pk %}" class="chat-action-form new-booking-ignore-form">
+        {% csrf_token %}
+        <button type="submit" class="jump-link jump-link-ignore" aria-label="Ignore new booking from {{ vendor_booking.booking.full_name }}" title="Remove from new bookings">Ignore</button>
+    </form>
+</span>

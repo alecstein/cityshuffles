@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "core",
     "messaging",
     "bookings",
+    "catalog",
     "mytours",
     "integrations",
     "message_templates",
@@ -115,6 +116,8 @@ GURUWALK_REQUEST_TIMEOUT = 20
 GURUWALK_SYNC_STARTUP_TIMEOUT = 10
 GURUWALK_SYNC_STARTUP_GRACE = 30
 GURUWALK_SYNC_PROGRESS_MAX_AGE = 120
+FREETOUR_SYNC_DAYS = 30
+FREETOUR_REQUEST_TIMEOUT = 30
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "")

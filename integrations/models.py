@@ -30,6 +30,7 @@ class Connection(models.Model):
     def display_name(self):
         return {
             "guruwalk": "GuruWalk",
+            "freetour": "FreeTour",
             "demotours": "DemoTours Inc.",
             "gmail": "Gmail",
             "manual": "Manual/Walk-up",
@@ -45,7 +46,7 @@ class Connection(models.Model):
             return bool(self.enabled and self.auth_status == "ok")
         # Freshness decides when to recheck; it does not turn the last known
         # successful authentication into a rejected credential.
-        if self.vendor == "guruwalk":
+        if self.vendor in {"guruwalk", "freetour"}:
             return bool(self.enabled and self.auth_status == "ok")
         return bool(self.enabled and self.auth_status == "ok" and self.auth_checked_at
                     and self.auth_checked_at > timezone.now() - timedelta(minutes=12))
@@ -59,7 +60,9 @@ class Connection(models.Model):
 class VendorTour(models.Model):
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE)
     external_id = models.CharField(max_length=100)
-    product = models.ForeignKey("bookings.TourProduct", on_delete=models.PROTECT)
+    name = models.CharField(max_length=240, blank=True)
+    product = models.ForeignKey("bookings.TourProduct", null=True, blank=True,
+                                on_delete=models.PROTECT)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["connection", "external_id"], name="vendor_tour_identity")]
@@ -68,7 +71,8 @@ class VendorTour(models.Model):
 class VendorEvent(models.Model):
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE)
     external_id = models.CharField(max_length=100)
-    departure = models.OneToOneField("bookings.Tour", on_delete=models.PROTECT)
+    departure = models.ForeignKey("bookings.Tour", on_delete=models.PROTECT,
+                                  related_name="vendor_events")
     source = models.JSONField(default=dict)
 
     class Meta:

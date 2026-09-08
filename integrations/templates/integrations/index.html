@@ -22,7 +22,7 @@
       <form class="integration-sync-form" method="post" action="{% url 'integrations:cancel' %}">
         {% csrf_token %}
         <input type="hidden" name="run_id" value="{{ connection.sync_run_id }}">
-        <button class="integration-cancel-button" type="submit" title="Cancel sync" aria-label="Cancel sync">Cancel ×</button>
+        <button class="integration-cancel-button" type="submit" title="Cancel sync" aria-label="Cancel sync">Cancel</button>
         <span class="integration-sync-spinner" role="status" aria-label="Sync in progress"></span>
       </form>
     {% else %}
@@ -55,7 +55,126 @@
     <p class="muted">This is the current manual fallback. Ask an administrator if you cannot find the cookie. One-click reconnect is not available yet; automatic token renewal has not been verified.</p>
   </details>
   <p class="muted">GuruWalk is read-only: syncs do not change anything there. Imported guests do not receive welcome messages automatically. Local attendance and contact edits are preserved. Guide assignments remain manual.</p>
+  {% if guruwalk_tour_mappings %}
+  <details class="integration-connect">
+    <summary>GuruWalk tour mappings ({{ guruwalk_tour_mappings|length }})</summary>
+    <p class="muted">Link each GuruWalk listing to the CityShuffles tour product it sells.</p>
+    {% for mapping in guruwalk_tour_mappings %}
+      <form method="post" action="{% url 'integrations:map_vendor_tour' %}" class="vendor-tour-mapping-form" data-vendor-tour-mapping>
+        {% csrf_token %}<input type="hidden" name="mapping_id" value="{{ mapping.id }}">
+        <span class="vendor-tour-mapping-name">{% if mapping.name %}{{ mapping.name }}{% else %}GuruWalk tour {{ mapping.external_id }}{% endif %}</span>
+        <span class="vendor-tour-mapping-controls">
+          <select name="product_id" class="vendor-tour-mapping-select" required>
+            <option value="">Choose a CityShuffles tour…</option>
+            {% for product in tour_products %}<option value="{{ product.id }}" {% if product.id == mapping.product_id %}selected{% endif %}>{{ product.name }}</option>{% endfor %}
+          </select>
+          <span class="vendor-tour-mapping-saved" data-mapping-saved hidden aria-live="polite"></span>
+        </span>
+      </form>
+    {% endfor %}
+  </details>
+  {% endif %}
 </article>
+
+<article class="integration-card">
+  <div class="integration-heading"><h2>FreeTour</h2>
+    {% if freetour_connection.auth_status == 'failed' %}<span class="integration-error">✕ Authentication expired</span>
+    {% elif freetour_connection.auth_current %}<span class="integration-ok">✓ Authentication working</span>
+    {% else %}<span class="muted">Authentication not verified</span>{% endif %}
+  </div>
+  <dl class="integration-facts">
+    <div><dt>Last successful sync</dt><dd data-freetour-last-sync>{{ freetour_connection.last_sync_at|date:"M j, g:i A"|default:"Not yet" }}</dd></div>
+  </dl>
+  <div class="integration-actions" data-sync-controls data-sync-vendor="freetour"
+       data-sync-running="{% if freetour_connection.sync_status == 'running' %}true{% else %}false{% endif %}"
+       data-sync-status-url="{% url 'integrations:sync_status' %}?vendor=freetour"
+       data-sync-start-url="{% url 'integrations:sync_freetour' %}"
+       data-sync-cancel-url="{% url 'integrations:cancel_freetour_sync' %}">
+    {% if freetour_connection.sync_status == 'running' %}
+      <form class="integration-sync-form" method="post" action="{% url 'integrations:cancel_freetour_sync' %}">
+        {% csrf_token %}
+        <input type="hidden" name="run_id" value="{{ freetour_connection.sync_run_id }}">
+        <button class="integration-cancel-button" type="submit" title="Cancel sync" aria-label="Cancel sync">Cancel</button>
+        <span class="integration-sync-spinner" role="status" aria-label="Sync in progress"></span>
+      </form>
+    {% else %}
+      <form class="integration-sync-form" method="post" action="{% url 'integrations:sync_freetour' %}">
+        {% csrf_token %}
+        <button type="submit">Sync all bookings</button>
+        <span class="integration-sync-spinner" hidden role="status" aria-label="Sync in progress"></span>
+      </form>
+    {% endif %}
+  </div>
+  <div class="integration-sync-progress" data-sync-progress {% if freetour_connection.sync_status != 'running' %}hidden{% endif %}>
+    <div class="integration-sync-progress-line">
+      <strong data-sync-progress-message>{{ freetour_sync_progress.message|default:"Starting FreeTour sync…" }}</strong>
+      <span class="integration-sync-progress-count" data-sync-progress-count>{% if freetour_sync_progress.total %}{{ freetour_sync_progress.current|default:0 }} / {{ freetour_sync_progress.total }}{% endif %}</span>
+    </div>
+    <progress data-sync-progress-bar {% if not freetour_sync_progress.total %}hidden{% endif %} max="{{ freetour_sync_progress.total|default:1 }}" value="{{ freetour_sync_progress.current|default:0 }}"></progress>
+  </div>
+  <p class="integration-sync-result" data-sync-result="freetour" {% if freetour_connection.sync_status != 'failed' and freetour_connection.sync_status != 'cancelled' and not freetour_connection.last_sync_at %}hidden{% endif %}>
+    {% if freetour_connection.sync_status == 'failed' %}<span class="integration-error">Sync failed; existing bookings were kept. {{ freetour_connection.detail }}</span>
+    {% elif freetour_connection.sync_status == 'cancelled' %}<span class="muted">Sync canceled. Existing data was kept.</span>
+    {% elif freetour_connection.sync_status == 'ok' and freetour_connection.last_sync_at %}<span class="integration-ok">Sync complete. Updated {{ freetour_connection.imported_count }} booking{{ freetour_connection.imported_count|pluralize }}.</span>{% endif %}
+  </p>
+  <details {% if not freetour_connection.enabled %}open{% endif %} class="integration-connect">
+    <summary>Connect or replace FreeTour session</summary>
+    <form method="post" action="{% url 'integrations:connect_freetour' %}" autocomplete="off">
+      {% csrf_token %}{{ freetour_form.as_p }}<button>Save and verify</button>
+    </form>
+    <p class="muted">Paste the Cookie request header from a signed-in FreeTour bookings request. The private cookie jar is refreshed automatically while the session remains valid.</p>
+  </details>
+  <p class="muted">FreeTour is read-only. Cancelled bookings are retained, and local attendance and contact edits are preserved.</p>
+  {% if freetour_tour_mappings %}
+  <details class="integration-connect">
+    <summary>FreeTour tour mappings ({{ freetour_tour_mappings|length }})</summary>
+    <p class="muted">Link each FreeTour listing to the CityShuffles tour product it sells.</p>
+    {% for mapping in freetour_tour_mappings %}
+      <form method="post" action="{% url 'integrations:map_vendor_tour' %}" class="vendor-tour-mapping-form" data-vendor-tour-mapping>
+        {% csrf_token %}<input type="hidden" name="mapping_id" value="{{ mapping.id }}">
+        <span class="vendor-tour-mapping-name">{% if mapping.name %}{{ mapping.name }}{% else %}FreeTour tour {{ mapping.external_id }}{% endif %}</span>
+        <span class="vendor-tour-mapping-controls">
+          <select name="product_id" class="vendor-tour-mapping-select" required>
+            <option value="">Choose a CityShuffles tour…</option>
+            {% for product in tour_products %}<option value="{{ product.id }}" {% if product.id == mapping.product_id %}selected{% endif %}>{{ product.name }}</option>{% endfor %}
+          </select>
+          <span class="vendor-tour-mapping-saved" data-mapping-saved hidden aria-live="polite"></span>
+        </span>
+      </form>
+    {% endfor %}
+  </details>
+  {% endif %}
+</article>
+
+<script>
+  document.querySelectorAll('[data-vendor-tour-mapping]').forEach((form) => {
+    form.querySelector('select[name="product_id"]').addEventListener('change', async (event) => {
+      const select = event.currentTarget;
+      const saved = form.querySelector('[data-mapping-saved]');
+      select.disabled = true;
+      saved.hidden = false;
+      saved.textContent = 'Saving…';
+      saved.classList.remove('vendor-tour-mapping-save-error', 'vendor-tour-mapping-saving');
+      saved.classList.add('vendor-tour-mapping-saving');
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) throw new Error('save failed');
+        saved.textContent = 'Saved';
+        saved.classList.remove('vendor-tour-mapping-saving');
+      } catch (error) {
+        saved.textContent = 'Could not save';
+        saved.classList.add('vendor-tour-mapping-save-error');
+      } finally {
+        select.disabled = false;
+      }
+    });
+  });
+</script>
 
 <article class="integration-card integration-gmail-card">
   <div class="integration-heading"><h2>Gmail</h2>
@@ -197,6 +316,103 @@
         }
       } finally {
         window.clearTimeout(requestTimer);
+        inFlight = false;
+      }
+      window.setTimeout(poll, 2000);
+    };
+    poll();
+  })();
+</script>
+<script>
+  (() => {
+    const controls = document.querySelector('[data-sync-vendor="freetour"]');
+    if (!controls) return;
+    const bindForm = () => {
+      const form = controls.querySelector('.integration-sync-form');
+      if (!form || form.dataset.bound === 'true') return;
+      form.dataset.bound = 'true';
+      const button = form.querySelector('button');
+      const spinner = form.querySelector('.integration-sync-spinner');
+      form.addEventListener('submit', () => {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        if (spinner) spinner.hidden = false;
+      }, { once: true });
+    };
+    bindForm();
+    if (controls.dataset.syncRunning !== 'true') return;
+
+    const endpoint = controls.dataset.syncStatusUrl;
+    const progress = controls.parentElement.querySelector('[data-sync-progress]');
+    const result = controls.parentElement.querySelector('[data-sync-result="freetour"]');
+    const lastSync = controls.parentElement.querySelector('[data-freetour-last-sync]');
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!response.ok) throw new Error('status request failed');
+        const state = await response.json();
+        const message = progress?.querySelector('[data-sync-progress-message]');
+        const count = progress?.querySelector('[data-sync-progress-count]');
+        const bar = progress?.querySelector('[data-sync-progress-bar]');
+        if (state.status === 'running' && result) result.hidden = true;
+        if (message) message.textContent = state.cancel_requested
+          ? 'Cancellation requested; finishing the current request…'
+          : (state.message || 'FreeTour sync in progress…');
+        if (count) count.textContent = state.total ? `${state.current || 0} / ${state.total}` : '';
+        if (bar) {
+          bar.hidden = !state.total;
+          if (state.total) { bar.max = state.total; bar.value = state.current || 0; }
+        }
+        if (state.status !== 'running') {
+          const form = controls.querySelector('.integration-sync-form');
+          const button = form?.querySelector('button');
+          const spinner = form?.querySelector('.integration-sync-spinner');
+          if (form && button) {
+            form.action = controls.dataset.syncStartUrl;
+            button.className = '';
+            button.textContent = 'Sync all bookings';
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+            button.removeAttribute('title');
+            button.removeAttribute('aria-label');
+            form.querySelector('input[name="run_id"]')?.remove();
+            if (spinner) spinner.hidden = true;
+            form.dataset.bound = 'false';
+            bindForm();
+          }
+          controls.dataset.syncRunning = 'false';
+          if (progress) progress.hidden = true;
+          if (result) {
+            result.textContent = state.status === 'failed'
+              ? `Sync failed; existing bookings were kept. ${state.detail || state.message || ''}`
+              : (state.status === 'cancelled' ? 'Sync canceled. Existing data was kept.'
+                : (state.message || 'Sync complete.'));
+            result.className = state.status === 'failed'
+              ? 'integration-sync-result integration-error'
+              : (state.status === 'ok' ? 'integration-sync-result integration-ok'
+                : 'integration-sync-result muted');
+            result.hidden = false;
+          }
+          if (lastSync && state.last_sync_at) {
+            lastSync.textContent = new Date(state.last_sync_at).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+            });
+          }
+          return;
+        }
+      } catch (error) {
+        if (result) {
+          result.textContent = 'Progress is temporarily unavailable. The sync may still be running; retrying…';
+          result.className = 'integration-sync-result muted';
+          result.hidden = false;
+        }
+      } finally {
         inFlight = false;
       }
       window.setTimeout(poll, 2000);

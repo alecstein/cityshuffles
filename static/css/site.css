@@ -11,6 +11,9 @@
     --outgoing: #dfeee9;
     --danger: #a22b2b;
     --shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    --compact-control-size: 40px;
+    --compact-icon-size: 20px;
+    --guest-action-gap: .6rem;
 }
 
 /* Consistent desktop affordance for interactive controls. */
@@ -31,17 +34,17 @@ button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
 .guest-chat-icon { background: white; border: 1px solid #c9d9d2; }
 .guest-chat-icon.chat-started, .guest-chat-icon.chat-started:hover { background: var(--accent); color: white; }
 .guest-chat-icon:disabled { background: #ededeb; border-color: #ddddda; color: #a4aaa5; }
-.jump-link svg, .new-booking-action svg, .new-bookings-heading button svg { display: inline-block; vertical-align: middle; width: 1em; height: 1em; margin-left: .35rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.jump-link svg { display: inline-block; vertical-align: middle; width: 1em; height: 1em; margin-left: .35rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .attendance-actions { display: flex; margin: 0 0 0 auto; gap: .25rem; flex-shrink: 0; }
-.attendance-button { display: grid; place-items: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 50%; background: #eeeeeb; color: #a0a59f; line-height: 1; }
+.attendance-button { display: grid; place-items: center; box-sizing: border-box; flex: 0 0 var(--compact-control-size); width: var(--compact-control-size); height: var(--compact-control-size); min-height: var(--compact-control-size); padding: 0; border: 0; border-radius: 50%; background: #eeeeeb; color: #a0a59f; line-height: 1; }
 .attendance-button.is-checked { background: #1f6b50; color: #dceee4; }
 .attendance-button.is-canceled { background: white; color: #b43d45; border: 2px solid currentColor; }
 .attendance-button.is-expected { background: #eeeeeb; color: #a0a59f; }
-.attendance-button svg { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.attendance-button svg { display: block; width: var(--compact-icon-size); height: var(--compact-icon-size); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .guest-row-main .attendance-actions { margin: 0; gap: 0; }
 .my-guest-cell { flex-wrap: wrap; }
 .guest-vendor { font-size: .72rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
-.guest-identity { min-width: 0; display: flex; flex-direction: column; gap: 0; }
+.guest-identity { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
 .guest-identity-name { display: flex; align-items: center; gap: .05rem; min-width: 0; }
 .guest-identity .edit-guest-button { flex-shrink:0; }
 .guest-identity .guest-vendor { line-height:1.2; }
@@ -84,8 +87,8 @@ button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
 .group-recipient-delivered { background: #e6f2e9; }
 .group-recipient-failed { background: #f8eaea; }
 
-.integration-card { max-width: 920px; padding: 1.5rem; background: white; border: 1px solid var(--border); border-radius: 12px; }
-.integration-card + .integration-card { margin-top: 1rem; }
+.integration-card { max-width: 920px; margin-top: 1rem; padding: 1.5rem; background: white; border: 1px solid var(--border); border-radius: 12px; }
+.page-header + .integration-card { margin-top: 0; }
 .integration-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
 .integration-heading h2 { margin: 0; }
 .integration-ok { color: #28714e; }
@@ -114,6 +117,13 @@ button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
 .integration-connect summary { cursor: pointer; font-weight: 600; }
 .integration-connect input { display: block; width: 100%; margin: .5rem 0; padding: .7rem; border: 1px solid var(--border); border-radius: 6px; }
 .integration-connect li { margin: .7rem 0; }
+.vendor-tour-mapping-form { display: grid; gap: .45rem; padding: .8rem 0; border-top: 1px solid var(--border); }
+.vendor-tour-mapping-name { overflow-wrap: anywhere; }
+.vendor-tour-mapping-controls { display: inline-flex; align-items: center; gap: .5rem; width: max-content; max-width: 100%; flex-wrap: nowrap; }
+.vendor-tour-mapping-select { flex: 0 0 280px; width: 280px; max-width: 100%; padding: .5rem; border: 1px solid var(--border); border-radius: 6px; background: white; color: var(--text); }
+.vendor-tour-mapping-saved { min-width: 1.2rem; color: #28714e; font-weight: 700; }
+.vendor-tour-mapping-saving { color: var(--muted); font-weight: 400; }
+.vendor-tour-mapping-save-error { color: #a33e3e; font-weight: 400; font-size: .8rem; }
 .integration-disconnect-form { display: inline-block; margin-left: .5rem; }
 .integration-disconnect-form button { background: var(--surface-2); color: var(--text); }
 .integration-disconnect-form button:hover { background: #e6e6e2; filter: none; }
@@ -148,25 +158,25 @@ button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
 .my-guest-cell .feedback-form { grid-column:3; grid-row:1; }
 .my-guest-cell .guest-contact-action { grid-column:4; grid-row:1; }
 .my-party-controls { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem 1.4rem; }
-.guest-chat-icon { display: inline-grid; place-items: center; flex: 0 0 2rem; width: 2rem; height: 2rem; padding: .35rem; border: 1px solid #c9d9d2; border-radius: 6px; background: white; color: var(--accent); }
+.guest-chat-icon { display: inline-grid; place-items: center; box-sizing: border-box; flex: 0 0 var(--compact-control-size); width: var(--compact-control-size); height: var(--compact-control-size); min-height: var(--compact-control-size); padding: 0; border: 1px solid #c9d9d2; border-radius: 6px; background: white; color: var(--accent); }
 .guest-chat-icon:hover { background: var(--accent-soft); }
 .guest-chat-icon:disabled { color: #afb3b0; background: #ededeb; cursor: not-allowed; }
-.guest-chat-icon svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.guest-chat-icon svg { display: block; width: var(--compact-icon-size); height: var(--compact-icon-size); margin: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .guest-special-requests { margin: 0; font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
 .guest-row > .guest-special-requests { flex-basis: 100%; grid-column: 1 / -1; }
 .feedback-form { margin: 0; flex-shrink: 0; }
-.feedback-button { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #a4aaa5; }
+.feedback-button { display: inline-grid; place-items: center; box-sizing: border-box; flex: 0 0 var(--compact-control-size); width: var(--compact-control-size); height: var(--compact-control-size); min-height: var(--compact-control-size); padding: 0; border: 0; border-radius: 7px; background: transparent; color: #a4aaa5; }
 .feedback-button:hover { background: var(--surface-2); filter: none; }
 .feedback-button.feedback-up { color: #28714e; background: #e6f2e9; }
 .feedback-button.feedback-down { color: #b94d4d; background: #f8eaea; }
-.feedback-button svg { width: 1.35rem; height: 1.35rem; fill: currentColor; }
-.my-guest-cell .attendance-button, .my-guest-cell .feedback-button, .my-guest-cell .guest-chat-icon { display:inline-grid; place-items:center; box-sizing:border-box; width:40px; height:40px; min-height:40px; padding:0; flex-basis:40px; }
+.feedback-button svg { width: var(--compact-icon-size); height: var(--compact-icon-size); fill: currentColor; }
+.my-guest-cell .attendance-button, .my-guest-cell .feedback-button, .my-guest-cell .guest-chat-icon { display:inline-grid; place-items:center; box-sizing:border-box; width:var(--compact-control-size); height:var(--compact-control-size); min-height:var(--compact-control-size); padding:0; flex-basis:var(--compact-control-size); }
 .my-guest-cell .attendance-button { border:0; border-radius:50%; font-size:1.2rem; }
 .my-guest-cell .attendance-button.is-canceled { border:2px solid currentColor; background:white; color:#b43d45; }
 .my-guest-cell .feedback-button, .my-guest-cell .guest-chat-icon { border:1px solid #c9d9d2; border-radius:6px; }
 .my-guest-cell .feedback-button.feedback-none { background:white; }
-.my-guest-cell .guest-chat-icon.chat-started { background:white; color:var(--accent); }
-.my-guest-cell .feedback-button svg, .my-guest-cell .guest-chat-icon svg { width:20px; height:20px; }
+.my-guest-cell .guest-chat-icon.chat-started { background:var(--accent); color:white; }
+.my-guest-cell .feedback-button svg { width:var(--compact-icon-size); height:var(--compact-icon-size); }
 .party-column { display: flex; align-items: center; gap: .5rem; min-width: 0; padding:0 .45rem; border-radius:8px; background:var(--surface-2); }
 .party-count-label { color: var(--muted); font-size: .78rem; }
 .party-stepper { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; margin: 0; }
@@ -302,9 +312,19 @@ button,
     cursor: pointer;
 }
 
+.button {
+    text-decoration: none;
+}
+
 button:hover,
 .button:hover {
     filter: brightness(0.95);
+}
+
+/* Chat buttons keep their icon dimensions instead of inheriting button padding. */
+.guest-chat-icon {
+    box-sizing: border-box;
+    padding: 0;
 }
 
 .site-header {
@@ -441,7 +461,7 @@ button:hover,
 
 .page-header {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
@@ -587,7 +607,7 @@ button:hover,
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.65rem;
+    gap: var(--guest-action-gap);
     flex-wrap: wrap;
 }
 
@@ -598,8 +618,8 @@ button:hover,
     justify-content: center;
     min-width: 0;
     width: auto;
-    height: auto;
-    min-height: 34px;
+    height: var(--compact-control-size);
+    min-height: var(--compact-control-size);
     padding: 0.45rem 0.7rem;
     border: 1px solid #c9d9d2;
     border-radius: 7px;
@@ -638,6 +658,25 @@ button:hover,
 
 .jump-link-start:hover {
     background: #174b3f;
+}
+
+.welcome-button,
+.welcome-button:hover {
+    border-color: var(--accent);
+    background: var(--surface);
+    color: var(--accent);
+}
+
+.welcome-button:hover {
+    background: var(--accent-soft);
+}
+
+.welcome-button.jump-link-disabled,
+.welcome-button.jump-link-disabled:hover {
+    border-color: #c9d9d2;
+    background: var(--surface);
+    color: var(--accent);
+    opacity: .55;
 }
 
 .jump-link-disabled,
@@ -698,43 +737,31 @@ button:hover,
 .flash.success { border-color: #b9d1c6; background: #edf6f1; color: #245f4d; }
 .flash.error { border-color: #e4baba; background: #fff1f1; color: #8c3030; }
 
-.new-bookings-card {
+.new-bookings-section {
     margin-bottom: 1.5rem;
+}
+
+.new-bookings-summary {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin: 0 0 .75rem;
+    padding: .15rem 0;
+    cursor: pointer;
+}
+
+.new-bookings-summary h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.new-bookings-card {
     padding: 1.25rem;
     background: var(--surface);
     border: 1px solid #c9d9d2;
     border-radius: 12px;
     box-shadow: var(--shadow);
     overflow: hidden;
-}
-
-.new-bookings-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin: -1.25rem -1.25rem .75rem;
-    padding: 1rem 1.25rem;
-    background: #f3f6f3;
-    border-bottom: 1px solid #dfe3de;
-}
-
-.new-bookings-heading h2,
-.new-bookings-heading p {
-    margin: 0;
-}
-
-.new-bookings-heading h2 { color: var(--text); }
-
-.new-bookings-heading form {
-    margin: 0;
-}
-
-.new-bookings-heading button:disabled {
-    background: #e8e8e5;
-    color: #92928d;
-    cursor: not-allowed;
-    filter: none;
 }
 
 .new-bookings-table-wrap {
@@ -774,13 +801,114 @@ button:hover,
     text-align: right;
 }
 
+.new-bookings-table tbody tr:first-child td {
+    border-top: 0;
+}
+
 .new-booking-time {
     color: var(--muted);
     white-space: nowrap;
 }
 
+.new-booking-guest .guest-row-main {
+    display: inline-flex;
+}
+
+.new-booking-tour-cell {
+    min-width: 0;
+}
+
+.new-booking-tour-link {
+    display: block;
+}
+
+.new-booking-tour-cell .new-booking-time {
+    display: block;
+    margin-top: .2rem;
+}
+
 .new-booking-action form {
     margin: 0;
+}
+
+.new-booking-actions {
+    display: grid;
+    grid-template-columns: var(--compact-control-size) max-content;
+    grid-template-areas:
+        "chat welcome"
+        ". ignore";
+    align-items: center;
+    justify-content: flex-end;
+    gap: .45rem .55rem;
+}
+
+.new-booking-ignore-form {
+    grid-area: ignore;
+    justify-self: end;
+    margin: 0 !important;
+}
+
+.new-booking-actions > .new-booking-chat-action,
+.new-booking-actions > .new-booking-chat-form,
+.new-booking-actions > a.new-booking-chat-action {
+    grid-area: chat;
+}
+
+.new-booking-actions > .new-booking-welcome-action,
+.new-booking-actions > .new-booking-welcome-form {
+    grid-area: welcome;
+}
+
+.jump-link-ignore,
+.jump-link-ignore:hover {
+    border-color: #d8c5c5;
+    background: #fff8f8;
+    color: #8d4c4c;
+}
+
+.my-guest-cell > .guest-contact-action.guest-welcome-action {
+    width: auto;
+    flex: 0 1 auto;
+}
+
+.guest-chat-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--guest-action-gap);
+}
+
+.guest-chat-actions .chat-action-form {
+    margin: 0;
+}
+
+.my-guest-cell > .guest-contact-action.guest-welcome-action .chat-action-form {
+    width: auto;
+    height: auto;
+}
+
+.my-guest-cell > .guest-contact-action.guest-welcome-action .welcome-button {
+    width: auto;
+    height: var(--compact-control-size);
+    min-height: var(--compact-control-size);
+    flex-basis: auto;
+}
+
+.new-bookings-summary {
+    list-style: none;
+}
+
+.new-bookings-summary::-webkit-details-marker {
+    display: none;
+}
+
+.new-bookings-summary::before {
+    content: "▶";
+    color: var(--text);
+    font-size: .8em;
+}
+
+.new-bookings-section[open] > .new-bookings-summary::before {
+    content: "▼";
 }
 
 
@@ -814,7 +942,7 @@ button:hover,
 }
 
 .template-page-header {
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
 }
 
@@ -915,9 +1043,10 @@ button:hover,
 .template-editor > summary {
     display: inline-block;
     cursor: pointer;
-    color: var(--accent);
+    color: var(--muted);
     font-size: .8rem;
     font-weight: 700;
+    text-decoration: underline;
 }
 
 .template-editor > form {
@@ -1055,6 +1184,34 @@ button:hover,
     background: #e6e6e2;
     filter: none;
 }
+
+.catalog-page-header { align-items: center; }
+.catalog-list { display: grid; gap: .75rem; max-width: 920px; }
+.catalog-list > h2 { margin: .5rem 0 .25rem; }
+.catalog-card { padding: 1.1rem 1.25rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.catalog-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.catalog-card h4, .catalog-card p { margin: 0; }
+.catalog-card p { margin-top: .35rem; white-space: pre-wrap; }
+.catalog-edit-button,
+.catalog-edit-button:hover {
+    flex-shrink: 0;
+    padding: .45rem .7rem;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: .85rem;
+    text-decoration: underline;
+    filter: none;
+}
+.catalog-empty { padding: 1.25rem; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface); }
+.catalog-form { max-width: 620px; padding: 1.25rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.catalog-form p { display: grid; gap: .35rem; margin: 0 0 1rem; }
+.catalog-form label { font-weight: 600; }
+.catalog-form input, .catalog-form textarea { width: 100%; padding: .65rem; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+.catalog-form textarea { resize: vertical; }
+.catalog-form .helptext { color: var(--muted); font-size: .8rem; }
+.catalog-form .errorlist { margin: 0; color: var(--danger); font-size: .85rem; }
+.catalog-form-actions { display: flex; align-items: center; gap: .6rem; }
 
 .sr-only {
     position: absolute;
@@ -1382,6 +1539,17 @@ button:hover,
     background: transparent;
     cursor: pointer;
     list-style: none;
+}
+
+.booking-date-heading::before {
+    content: "▶";
+    flex: 0 0 auto;
+    color: var(--text);
+    font-size: .8em;
+}
+
+.booking-date-group[open] > .booking-date-heading::before {
+    content: "▼";
 }
 .booking-date-heading::-webkit-details-marker,
 .tour-summary::-webkit-details-marker { display: none; }

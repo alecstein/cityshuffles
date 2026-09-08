@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Prefetch, Case, When, Value, IntegerField, CharField
+from django.db.models import Prefetch, Case, When, Value, IntegerField, CharField, Exists, OuterRef
 from django.utils import timezone
 from itertools import groupby
 from django.http import HttpResponse, JsonResponse
@@ -11,9 +11,11 @@ from django.views.decorators.http import require_GET, require_POST
 
 from mytours.forms import AttendanceForm, BookingForm, ManualBookingForm
 from mytours.services import booking_modal_data, create_manual_booking, update_booking
+from messaging.models import Message
 
 from .models import Guest, Tour
 from .services import (
+    open_conversation_for_booking, open_conversation_for_guest,
     start_conversation_for_booking, start_conversation_for_guest, with_chat_state,
 )
 from integrations.models import VendorBooking
@@ -28,20 +30,34 @@ def dashboard_context(add_booking_form=None, add_booking_tour=None):
             to_attr="bookings_conversations",
         )
     )
-    tours = Tour.objects.select_related("responsible").prefetch_related(Prefetch("guests", queryset=guests))
+    tours = Tour.objects.filter(
+        start_time__date__gte=timezone.localdate(),
+    ).select_related("responsible").prefetch_related(Prefetch("guests", queryset=guests))
     for tour in tours:
         for guest in tour.guests.all():
             guest.modal_data = booking_modal_data(tour, guest)
     date_groups = [{"date": day, "tours": list(items)} for day, items in
                    groupby(tours, key=lambda t: timezone.localtime(t.start_time).date())]
+    booking_messages = Message.objects.filter(
+        conversation__contact_id=OuterRef("booking__contact_id"),
+    )
     new_bookings = (
         VendorBooking.objects
-        .filter(connection__vendor="guruwalk", is_new=True)
+        .filter(is_new=True, conversation_started_at__isnull=True)
+        .annotate(chat_exists=Exists(booking_messages))
+        .filter(chat_exists=False)
         .exclude(source__status__in=["cancelled", "canceled"])
         .select_related(
             "booking__contact",
+            "booking__vendorbooking__connection",
             "event__departure",
             "connection",
+        )
+        .prefetch_related(
+            Prefetch(
+                "booking__contact__conversations",
+                to_attr="bookings_conversations",
+            )
         )
         .order_by("event__departure__start_time", "pk")
     )
@@ -98,6 +114,47 @@ def start_booking_conversation(request, pk):
 
 @require_POST
 @login_required
+def open_booking_conversation(request, pk):
+    vendor_booking = get_object_or_404(
+        VendorBooking.objects.select_related("booking__contact", "connection"),
+        pk=pk,
+    )
+    conversation = open_conversation_for_booking(vendor_booking)
+    if conversation is None:
+        messages.error(
+            request,
+            "This guest has no usable contact method yet, so the chat could not be opened.",
+        )
+        return redirect(request.META.get("HTTP_REFERER") or "bookings:index")
+    return redirect(f"{reverse('messaging:inbox')}?conversation={conversation.pk}")
+
+
+@require_POST
+@login_required
+def open_guest_conversation(request, pk):
+    guest = get_object_or_404(Guest.objects.select_related("contact"), pk=pk)
+    conversation = open_conversation_for_guest(guest)
+    if conversation is None:
+        messages.error(
+            request,
+            "This guest has no usable contact method yet, so the chat could not be opened.",
+        )
+        return redirect(request.META.get("HTTP_REFERER") or "bookings:index")
+    return redirect(f"{reverse('messaging:inbox')}?conversation={conversation.pk}")
+
+
+@require_POST
+@login_required
+def ignore_new_booking(request, pk):
+    vendor_booking = get_object_or_404(VendorBooking, pk=pk)
+    if vendor_booking.is_new:
+        vendor_booking.is_new = False
+        vendor_booking.save(update_fields=["is_new"])
+    return redirect(request.META.get("HTTP_REFERER") or "bookings:index")
+
+
+@require_POST
+@login_required
 def start_guest_conversation(request, pk):
     guest = get_object_or_404(Guest.objects.select_related("contact"), pk=pk)
     vendor_booking = (
@@ -117,30 +174,6 @@ def start_guest_conversation(request, pk):
         )
         return redirect(request.META.get("HTTP_REFERER") or "bookings:index")
     return redirect(f"{reverse('messaging:inbox')}?conversation={conversation.pk}")
-
-
-@require_POST
-@login_required
-def start_all_conversations(request):
-    new_bookings = (
-        VendorBooking.objects
-        .filter(connection__vendor="guruwalk", is_new=True)
-        .exclude(source__status__in=["cancelled", "canceled"])
-        .select_related("booking__contact", "connection")
-        .order_by("event__departure__start_time", "pk")
-    )
-    started = 0
-    unavailable = 0
-    for vendor_booking in new_bookings:
-        if start_conversation_for_booking(vendor_booking, request.user):
-            started += 1
-        else:
-            unavailable += 1
-    if started:
-        messages.success(request, f"Started {started} conversation{'s' if started != 1 else ''}.")
-    if unavailable:
-        messages.error(request, f"{unavailable} guest{'s' if unavailable != 1 else ''} still need contact information.")
-    return redirect("bookings:index")
 
 
 @require_GET

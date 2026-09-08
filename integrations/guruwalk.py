@@ -19,7 +19,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from bookings.models import Guest, Tour, TourProduct
+from bookings.models import Guest, Tour, TourProduct, departure_fingerprint
 from messaging.models import Contact, Conversation
 from .credentials import (cancel_requested, clear_cancel, read_token, sync_lock,
                            write_sync_diagnostic, write_sync_progress)
@@ -486,20 +486,88 @@ def get_contact(connection, row):
         Conversation.objects.get_or_create(contact=contact, channel="sms")
         return contact
     phone = phone_number(row)
-    # An exact phone match shares the inbox; never merge contacts by name.
+    email = str(row.get("email") or "").strip().lower()[:254] or None
+    if email and ("@" not in email or any(char.isspace() for char in email)):
+        email = None
+    # Exact contact details can share the inbox; never merge contacts by name.
     contact = Contact.objects.filter(phone_number=phone).first() if phone else None
+    if not contact and email:
+        contact = Contact.objects.filter(email__iexact=email).first()
     if not contact:
-        contact = Contact.objects.create(name=str(row.get("name") or "Guest")[:200], phone_number=phone)
+        contact = Contact.objects.create(
+            name=str(row.get("name") or "Guest")[:200],
+            phone_number=phone,
+            email=email,
+        )
     VendorGuest.objects.create(connection=connection, external_id=external, contact=contact)
     # Create an inbox thread even when GuruWalk supplied no phone number. The
     # channel will be unavailable until staff add a contact method, but the
     # guest remains visible in Messages.
     Conversation.objects.get_or_create(contact=contact, channel="sms")
+    if contact.email:
+        Conversation.objects.get_or_create(contact=contact, channel="email")
     return contact
 
 
+def _resolve_event(connection, event, create_products):
+    """Resolve a vendor occurrence to the shared canonical departure."""
+    external_tour_id = identity(event, "tourId")
+    title = event["title"][:240]
+    product_map = VendorTour.objects.filter(
+        connection=connection, external_id=external_tour_id,
+    ).first()
+    if not product_map:
+        product = TourProduct.objects.create(name=title) if create_products else None
+        product_map = VendorTour.objects.create(
+            connection=connection,
+            external_id=external_tour_id,
+            name=title,
+            product=product,
+        )
+    elif product_map.name != title:
+        product_map.name = title
+        product_map.save(update_fields=["name"])
+    if not product_map.product_id:
+        return None, None
+
+    start_time = departure_time(event)
+    departure_name = product_map.product.name[:240]
+    fingerprint = departure_fingerprint(product_map.product_id, start_time)
+    mapped_event = VendorEvent.objects.filter(
+        connection=connection, external_id=identity(event, "id"),
+    ).select_related("departure").first()
+    if mapped_event and mapped_event.departure.fingerprint == fingerprint:
+        departure = mapped_event.departure
+    else:
+        departure = Tour.objects.filter(fingerprint=fingerprint).first()
+        if not departure:
+            departure = Tour.objects.create(
+                product=product_map.product,
+                name=departure_name,
+                start_time=start_time,
+            )
+        if mapped_event:
+            mapped_event.departure = departure
+            mapped_event.save(update_fields=["departure"])
+            Guest.objects.filter(vendorbooking__event=mapped_event).update(booked_tour=departure)
+        else:
+            mapped_event = VendorEvent.objects.create(
+                connection=connection,
+                external_id=identity(event, "id"),
+                departure=departure,
+            )
+    departure.name = departure_name
+    departure.start_time = start_time
+    departure.product = product_map.product
+    departure.save(update_fields=["name", "start_time", "product"])
+    mapped_event.source = event
+    mapped_event.save(update_fields=["source"])
+    return departure, mapped_event
+
+
 @transaction.atomic
-def apply_snapshot(connection, snapshot, should_cancel=cancel_requested, progress=None, run_id=None):
+def apply_snapshot(connection, snapshot, should_cancel=cancel_requested, progress=None, run_id=None,
+                   create_products=True):
     progress = progress or _noop_progress
     imported = 0
     total_bookings = sum(len(bookings) for _, bookings in snapshot)
@@ -508,19 +576,11 @@ def apply_snapshot(connection, snapshot, should_cancel=cancel_requested, progres
     for event, bookings in snapshot:
         if _cancelled(should_cancel, run_id) or not _run_active(connection, run_id):
             raise SyncCancelled("GuruWalk sync canceled. Existing data was kept.")
-        product_map = VendorTour.objects.filter(connection=connection, external_id=str(event["tourId"])).first()
-        if not product_map:
-            product = TourProduct.objects.create(name=event["title"][:240])
-            product_map = VendorTour.objects.create(connection=connection, external_id=str(event["tourId"]), product=product)
-        mapped_event = VendorEvent.objects.filter(connection=connection, external_id=str(event["id"])).first()
-        if not mapped_event:
-            tour = Tour.objects.create(product=product_map.product, name=event["title"][:240], start_time=departure_time(event))
-            mapped_event = VendorEvent.objects.create(connection=connection, external_id=str(event["id"]), departure=tour)
-        tour = mapped_event.departure
-        tour.name, tour.start_time, tour.product = event["title"][:240], departure_time(event), product_map.product
-        tour.save(update_fields=["name", "start_time", "product"])
-        mapped_event.source = event
-        mapped_event.save(update_fields=["source"])
+        tour, mapped_event = _resolve_event(connection, event, create_products)
+        if not tour:
+            # Keep the discovered listing so staff can link it. Its bookings
+            # are imported on the first sync after mapping.
+            continue
         for row in bookings:
             if _cancelled(should_cancel, run_id) or not _run_active(connection, run_id):
                 raise SyncCancelled("GuruWalk sync canceled. Existing data was kept.")
@@ -633,7 +693,8 @@ def _run_sync_locked(connection, window, run_id):
         with transaction.atomic():
             imported = apply_snapshot(connection, snapshot,
                                       should_cancel=should_abort,
-                                      progress=progress, run_id=run_id)
+                                      progress=progress, run_id=run_id,
+                                      create_products=False)
             if should_abort(run_id):
                 raise SyncCancelled("GuruWalk sync canceled. Existing data was kept.")
             completed_at = timezone.now()

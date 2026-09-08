@@ -32,18 +32,27 @@
                 {% endif %}
             </button>
         </form>
-        <div class="guest-contact-action">
+        <div class="guest-contact-action {% if not guest.chat_started %}guest-welcome-action{% endif %}">
         {% if guest.chat_started and guest.conversation %}
-        <a class="guest-chat-icon chat-started" href="{% url 'messaging:inbox' %}?conversation={{ guest.conversation.pk }}" aria-label="View chat with {{ guest.full_name }}{% if guest.unread_count %}, {{ guest.unread_count }} unread messages{% endif %}" title="View chat">
-            {% if guest.unread_count %}<span class="chat-count-badge">{{ guest.unread_count }}</span><span class="mobile-unread-chat" aria-hidden="true">{% include "mytours/partials/chat_icon.html" %}<span class="chat-unread-dot"></span></span>{% else %}{% include "mytours/partials/chat_icon.html" %}{% endif %}
-        </a>
+        {% include "bookings/partials/chat_bubble.html" with chat_conversation=guest.conversation chat_guest_name=guest.full_name chat_unread_count=guest.unread_count only %}
+        {% elif guest.chat_started %}
+        {% include "bookings/partials/chat_bubble.html" with chat_guest_name=guest.full_name chat_disabled=True chat_unavailable=True only %}
         {% elif guest.contact.phone_number or guest.contact.email %}
-        <form method="post" action="{% url 'bookings:start_guest_conversation' guest.pk %}" class="chat-action-form">
-            {% csrf_token %}
-            <button type="submit" class="guest-chat-icon" aria-label="Start chat with {{ guest.full_name }}" title="Start chat and send welcome message">{% include "mytours/partials/chat_icon.html" %}</button>
-        </form>
+        <span class="guest-chat-actions">
+            <form method="post" action="{% url 'bookings:start_guest_conversation' guest.pk %}" class="chat-action-form">
+                {% csrf_token %}
+                <button type="submit" class="jump-link jump-link-start welcome-button" aria-label="Send welcome to {{ guest.full_name }}" title="Send welcome message">Greet</button>
+            </form>
+            <form method="post" action="{% url 'bookings:open_guest_conversation' guest.pk %}" class="chat-action-form">
+                {% csrf_token %}
+                {% include "bookings/partials/chat_bubble.html" with chat_guest_name=guest.full_name only %}
+            </form>
+        </span>
         {% else %}
-        <button type="button" class="guest-chat-icon" disabled aria-label="Start chat with {{ guest.full_name }} (no contact information)" title="Add contact information to start chat">{% include "mytours/partials/chat_icon.html" %}</button>
+        <span class="guest-chat-actions">
+            <button type="button" class="jump-link jump-link-disabled welcome-button" disabled aria-label="Send welcome to {{ guest.full_name }} (no contact information)" title="Add contact information to send the welcome message">Greet</button>
+            {% include "bookings/partials/chat_bubble.html" with chat_guest_name=guest.full_name chat_disabled=True only %}
+        </span>
         {% endif %}
         </div>
         {{ form.errors }}

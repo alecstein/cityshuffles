@@ -52,13 +52,13 @@ class MyToursTests(TestCase):
         self.guest.refresh_from_db()
         self.assertEqual(self.guest.attendance, "expected")
 
-    def test_no_contact_guest_keeps_disabled_start_chat_action(self):
+    def test_no_contact_guest_keeps_disabled_send_welcome_action(self):
         response = self.client.get(
             reverse("mytours:index"),
             {"date": timezone.localdate(self.tour.start_time).isoformat(), "tour": self.tour.pk},
         )
 
-        self.assertContains(response, "Start chat")
+        self.assertContains(response, "Send welcome")
         self.assertContains(response, "no contact information")
 
     def test_add_booking_uses_modal_without_location_field(self):
@@ -71,7 +71,7 @@ class MyToursTests(TestCase):
         self.assertContains(response, "Cancel")
         self.assertNotContains(response, "Location")
 
-    def test_started_chat_uses_view_chat_action(self):
+    def test_started_chat_uses_chat_bubble_action(self):
         self.guest.contact.phone_number = "+12125550005"
         self.guest.contact.save(update_fields=["phone_number"])
         conversation = Conversation.objects.create(
@@ -89,8 +89,38 @@ class MyToursTests(TestCase):
             {"date": timezone.localdate(self.tour.start_time).isoformat(), "tour": self.tour.pk},
         )
 
-        self.assertContains(response, "View chat")
-        self.assertNotContains(response, "Start chat")
+        self.assertContains(response, "View chat with Guest One")
+        self.assertNotContains(response, "Send welcome")
+
+    def test_unstarted_guest_has_welcome_and_chat_actions(self):
+        self.guest.contact.phone_number = "+12125550005"
+        self.guest.contact.save(update_fields=["phone_number"])
+
+        response = self.client.get(
+            reverse("mytours:index"),
+            {"date": timezone.localdate(self.tour.start_time).isoformat(), "tour": self.tour.pk},
+        )
+
+        self.assertContains(response, "Send welcome to Guest One")
+        self.assertContains(response, "Open chat with Guest One")
+
+    def test_open_chat_does_not_send_welcome(self):
+        self.guest.contact.phone_number = "+12125550005"
+        self.guest.contact.save(update_fields=["phone_number"])
+
+        response = self.client.post(
+            reverse("bookings:open_guest_conversation", args=[self.guest.pk]),
+        )
+
+        conversation = Conversation.objects.get(
+            contact=self.guest.contact,
+            channel=Conversation.Channel.SMS,
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('messaging:inbox')}?conversation={conversation.pk}",
+        )
+        self.assertFalse(Message.objects.filter(conversation=conversation).exists())
 
     def test_status_label_is_not_checked_in(self):
         response = self.client.get(

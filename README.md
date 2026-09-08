@@ -63,6 +63,16 @@ New GuruWalk records are marked as new until staff starts their conversation. Th
 python manage.py seed_mock_new_bookings
 ```
 
+## FreeTour integration and shared departures
+
+FreeTour is read through its signed-in back-office HTML. Paste the complete `Cookie` request header from a bookings-page request into the private FreeTour form on **Integrations**. It is stored only in `.integration-secrets/freetour.cookies`; refreshed response cookies replace it atomically. If the session expires, the integration pauses and asks for a new header.
+
+The adapter first requests `/backoffice/get_booking/{year}/{month}?page=bookings`, then requests `/backoffice/bookings?date=YYYY-MM-DD` only for populated dates. Requests are sequential to reduce Cloudflare rate-limit risk. Daily row counts must match the calendar index before any database changes commit. Cancelled rows and adults/children are parsed from HTML; the built-in spreadsheet export is not used because it omits those details and stable event IDs.
+
+Each marketplace tour listing must be linked on **Integrations** to a canonical CityShuffles tour product. A departure fingerprint is derived from that product and the exact UTC start instant. GuruWalk and FreeTour event IDs with the same fingerprint point to one internal departure, so their bookings appear together. The current fingerprint assumes only one operating group per product/start time.
+
+Automatic FreeTour refresh runs today every 30 minutes, tomorrow every two hours, and the remaining 30-day window every 12 hours. Restart the integration worker after deployment. Apply migrations first; the migration consolidates existing duplicate product/start-time departures when their photo/message records do not conflict.
+
 Message templates live in the **Templates** sidebar app. Create the initial set with:
 
 ```bash

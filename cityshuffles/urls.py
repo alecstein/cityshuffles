@@ -15,6 +15,7 @@ urlpatterns = [
     path("", include("core.urls")),
     path("messages/", include("messaging.urls")),
     path("bookings/", include("bookings.urls")),
+    path("catalog/", include("catalog.urls")),
     path("my-tours/", include("mytours.urls")),
     path("integrations/", include("integrations.urls")),
     path("templates/", include("message_templates.urls")),

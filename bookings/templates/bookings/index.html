@@ -9,33 +9,27 @@
     </div>
 </section>
 
-<section class="new-bookings-card" aria-labelledby="new-bookings-heading">
-    <div class="new-bookings-heading">
-        <div>
-            <h2 id="new-bookings-heading">New bookings</h2>
-        </div>
-        <form method="post" action="{% url 'bookings:start_all_conversations' %}">
-            {% csrf_token %}
-            <button type="submit" {% if not new_bookings %}disabled{% endif %}>Start all chats {% include "mytours/partials/chat_icon.html" %}</button>
-        </form>
-    </div>
+<details class="new-bookings-section" open aria-labelledby="new-bookings-heading">
+    <summary class="new-bookings-summary">
+        <h2 id="new-bookings-heading">New bookings ({{ new_bookings|length }})</h2>
+    </summary>
+    <div class="new-bookings-card">
     {% if new_bookings %}
     <div class="new-bookings-table-wrap">
         <table class="new-bookings-table">
-            <thead>
-                <tr><th>Guest</th><th>Tour</th><th>Vendor</th><th>Time</th><th><span class="sr-only">Action</span></th></tr>
-            </thead>
             <tbody>
                 {% for vendor_booking in new_bookings %}
                 <tr>
-                    <td>
-                        <strong>{{ vendor_booking.booking.full_name }}</strong>
+                    <td class="new-booking-guest">
+                        {% url 'bookings:guest_attendance_update' vendor_booking.booking.pk as attendance_action_url %}
+                        {% include "bookings/partials/guest_row_main.html" with guest=vendor_booking.booking attendance_action_url=attendance_action_url %}
                     </td>
-                    <td>{{ vendor_booking.event.departure.name }}</td>
-                    <td>{{ vendor_booking.display_vendor }}</td>
-                    <td class="new-booking-time">{{ vendor_booking.event.departure.start_time|date:"M j, g:i A" }}</td>
+                    <td class="new-booking-tour-cell">
+                        <a class="new-booking-tour-link" href="{% url 'mytours:all' %}?date={{ vendor_booking.event.departure.start_time|date:'Y-m-d' }}&tour={{ vendor_booking.event.departure.pk }}">{{ vendor_booking.event.departure.name }}</a>
+                        <span class="new-booking-time">{{ vendor_booking.event.departure.start_time|date:"M j, g:i A" }}</span>
+                    </td>
                     <td class="new-booking-action">
-                        {% include "bookings/partials/chat_button.html" with guest=vendor_booking.booking %}
+                        {% include "bookings/partials/new_booking_actions.html" %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -45,7 +39,8 @@
     {% else %}
     <p class="muted new-bookings-empty">No new bookings right now.</p>
     {% endif %}
-</section>
+    </div>
+</details>
 
 <div class="bookings-layout">
     <section class="tour-list" aria-label="Upcoming tours">

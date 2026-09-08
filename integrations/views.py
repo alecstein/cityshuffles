@@ -15,16 +15,21 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_POST
 from .credentials import (cancel_requested, clear_cancel, read_gmail_refresh_token,
-                           read_sync_progress, read_token, request_cancel_for_run,
-                           save_gmail_refresh_token, save_token, sync_lock,
-                           sync_progress_stale, write_sync_diagnostic, write_sync_progress)
-from .forms import CredentialForm
+                           clear_freetour_cancel, freetour_cancel_requested,
+                           read_freetour_cookies, read_freetour_sync_progress, read_sync_progress,
+                           read_token, request_cancel_for_run, request_freetour_cancel_for_run,
+                           save_freetour_cookies, freetour_sync_lock,
+                           save_gmail_refresh_token, save_token, sync_lock, sync_progress_stale,
+                           write_freetour_sync_progress, write_sync_diagnostic, write_sync_progress)
+from .forms import CredentialForm, FreeTourCredentialForm
+from .freetour import FreeTourClient, FreeTourAuthenticationError
 from .gmail import (GmailAuthenticationError, GmailIntegrationError,
                     GmailClient, authorization_url,
                     check_auth as check_gmail_auth, exchange_code,
                     oauth_configured)
 from .guruwalk import AuthenticationError, GuruWalkClient, IntegrationError
-from .models import Connection
+from .models import Connection, VendorTour
+from bookings.models import TourProduct
 
 
 def _recover_stale_sync(connection, progress):
@@ -61,7 +66,9 @@ def _recover_stale_sync(connection, progress):
     if not stale:
         return connection, progress
 
-    detail = "The GuruWalk sync worker stopped reporting progress. Existing bookings were preserved; try again."
+    is_freetour = connection.vendor == "freetour"
+    detail = (f"The {connection.display_name} sync worker stopped reporting progress. "
+              "Existing bookings were preserved; try again.")
     changed = Connection.objects.filter(pk=connection.pk, sync_status="running",
                                         sync_run_id=run_id).update(
         sync_status="failed",
@@ -69,10 +76,11 @@ def _recover_stale_sync(connection, progress):
         sync_reserved_at=None,
     )
     if changed:
-        clear_cancel(run_id)
+        (clear_freetour_cancel if is_freetour else clear_cancel)(run_id)
         write_sync_diagnostic(run_id, "abandoned", reason="stale_progress")
         try:
-            write_sync_progress("failed", 0, 0, detail, run_id=run_id)
+            writer = write_freetour_sync_progress if is_freetour else write_sync_progress
+            writer("failed", 0, 0, detail, run_id=run_id)
         except OSError:
             pass
         connection.refresh_from_db()
@@ -169,6 +177,7 @@ def index(request):
     connection, _ = Connection.objects.get_or_create(vendor="guruwalk")
     gmail_connection, _ = Connection.objects.get_or_create(vendor="gmail")
     demo_connection = Connection.objects.filter(vendor="demotours").first()
+    freetour_connection, _ = Connection.objects.get_or_create(vendor="freetour")
     form = CredentialForm(request.POST if request.method == "POST" else None)
     sync_progress = read_sync_progress()
     if request.method == "POST" and form.is_valid():
@@ -244,19 +253,129 @@ def index(request):
                 sync_progress = read_sync_progress()
         connection.refresh_from_db()
         gmail_connection.refresh_from_db()
+    freetour_sync_progress = read_freetour_sync_progress()
+    with freetour_sync_lock() as acquired:
+        freetour_connection.refresh_from_db()
+        if acquired:
+            freetour_connection, freetour_sync_progress = _recover_stale_sync(
+                freetour_connection, freetour_sync_progress)
+    freetour_connection.refresh_from_db()
     response = render(request, "integrations/index.html", {
         "connection": connection,
         "gmail_connection": gmail_connection,
         "demo_connection": demo_connection,
+        "freetour_connection": freetour_connection,
+        "freetour_form": FreeTourCredentialForm(),
+        "guruwalk_tour_mappings": VendorTour.objects.select_related("connection", "product").filter(
+            connection__vendor="guruwalk"
+        ).order_by("name", "external_id"),
+        "freetour_tour_mappings": VendorTour.objects.select_related("connection", "product").filter(
+            connection__vendor="freetour"
+        ).order_by("name", "external_id"),
+        "tour_products": TourProduct.objects.order_by("name"),
         "form": form,
         "gmail_oauth_configured": oauth_configured(),
         "sync_running": connection.sync_status == "running",
         "sync_progress": sync_progress,
+        "freetour_sync_progress": freetour_sync_progress,
         "sync_cancel_requested": connection.sync_status == "running" and (
             cancel_requested(connection.sync_run_id) if connection.sync_run_id else cancel_requested()),
     })
     response["Cache-Control"] = "no-store"
     return response
+
+
+@require_POST
+@login_required
+@sensitive_post_parameters("cookies")
+def connect_freetour(request):
+    form = FreeTourCredentialForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "The FreeTour Cookie header is not valid.")
+        return redirect("integrations:index")
+    cookies = form.cleaned_data["cookies"]
+    try:
+        client = FreeTourClient(cookies=cookies, persist_cookies=False)
+        client.check_auth()
+        save_freetour_cookies(client.cookies)
+    except (AuthenticationError, IntegrationError, OSError) as exc:
+        messages.error(request, str(exc))
+        return redirect("integrations:index")
+    connection, _ = Connection.objects.get_or_create(vendor="freetour")
+    Connection.objects.filter(pk=connection.pk).update(
+        enabled=True, auth_status="ok", auth_checked_at=timezone.now(),
+        account_id="FreeTour back office", detail="",
+    )
+    messages.success(request, "FreeTour authentication verified.")
+    return redirect("integrations:index")
+
+
+@require_POST
+@login_required
+def sync_freetour(request):
+    connection, _ = Connection.objects.get_or_create(vendor="freetour")
+    if not read_freetour_cookies():
+        messages.error(request, "Connect FreeTour before syncing bookings.")
+        return redirect("integrations:index")
+    with freetour_sync_lock() as acquired:
+        connection.refresh_from_db()
+        connection, _ = _recover_stale_sync(connection, read_freetour_sync_progress())
+        if not acquired or connection.sync_status == "running":
+            messages.info(request, "A FreeTour sync is already running.")
+            return redirect("integrations:index")
+        clear_freetour_cancel()
+        run_id = uuid.uuid4().hex
+        now = timezone.now()
+        Connection.objects.filter(pk=connection.pk).update(
+            enabled=True, sync_status="running", last_attempt_at=now,
+            sync_run_id=run_id, sync_reserved_at=now, detail="",
+        )
+        try:
+            write_freetour_sync_progress("starting", 0, 0, "Starting FreeTour sync…", run_id=run_id)
+        except OSError:
+            pass
+    try:
+        child_env = os.environ.copy()
+        child_env["CITYSHUFFLES_FREETOUR_RUN_ID"] = run_id
+        subprocess.Popen(
+            [sys.executable, str(settings.BASE_DIR / "manage.py"), "run_integrations", "--once", "--vendor", "freetour"],
+            cwd=str(settings.BASE_DIR), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True, close_fds=True, env=child_env,
+        )
+    except (OSError, ValueError):
+        detail = "Could not start the FreeTour sync. Try again."
+        Connection.objects.filter(pk=connection.pk, sync_run_id=run_id, sync_status="running").update(
+            sync_status="failed", detail="Could not start the FreeTour sync. Try again."
+        )
+        clear_freetour_cancel(run_id)
+        write_freetour_sync_progress("failed", 0, 0, detail, run_id=run_id)
+    return redirect("integrations:index")
+
+
+@require_POST
+@login_required
+def cancel_freetour_sync(request):
+    connection = Connection.objects.filter(vendor="freetour").first()
+    requested_run_id = request.POST.get("run_id", "")
+    if (connection and connection.sync_status == "running"
+            and requested_run_id == (connection.sync_run_id or "")):
+        request_freetour_cancel_for_run(connection.sync_run_id or None)
+    return redirect("integrations:index")
+
+
+@require_POST
+@login_required
+def map_vendor_tour(request):
+    try:
+        mapping = VendorTour.objects.select_related("connection").get(pk=request.POST.get("mapping_id"))
+        product = TourProduct.objects.get(pk=request.POST.get("product_id"))
+    except (VendorTour.DoesNotExist, TourProduct.DoesNotExist, TypeError, ValueError):
+        return HttpResponseBadRequest("Invalid tour mapping.")
+    mapping.product = product
+    mapping.save(update_fields=["product"])
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"ok": True})
+    return redirect("integrations:index")
 
 
 @login_required
@@ -402,10 +521,17 @@ def cancel_sync(request):
 @require_GET
 def sync_status(request):
     """Return local sync state without making any provider requests."""
-    connection, _ = Connection.objects.get_or_create(vendor="guruwalk")
-    with sync_lock() as acquired:
+    vendor = request.GET.get("vendor", "guruwalk")
+    if vendor not in {"guruwalk", "freetour"}:
+        vendor = "guruwalk"
+    is_freetour = vendor == "freetour"
+    connection, _ = Connection.objects.get_or_create(vendor=vendor)
+    lock = freetour_sync_lock if is_freetour else sync_lock
+    progress_reader = read_freetour_sync_progress if is_freetour else read_sync_progress
+    cancel_reader = freetour_cancel_requested if is_freetour else cancel_requested
+    with lock() as acquired:
         connection.refresh_from_db()
-        progress = read_sync_progress()
+        progress = progress_reader()
         if acquired:
             connection, progress = _recover_stale_sync(connection, progress)
     connection.refresh_from_db()
@@ -427,7 +553,7 @@ def sync_status(request):
         "current": progress.get("current", 0),
         "total": progress.get("total", 0),
         "message": progress.get("message", ""),
-        "cancel_requested": (cancel_requested(run_id) if run_id else cancel_requested()),
+        "cancel_requested": (cancel_reader(run_id) if run_id else cancel_reader()),
         "run_id": run_id,
         "detail": connection.detail,
         "last_sync_at": connection.last_sync_at.isoformat() if connection.last_sync_at else None,

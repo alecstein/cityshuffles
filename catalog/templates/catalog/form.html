@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} · CityShuffles{% endblock %}
+{% block content %}
+<section class="page-header"><h1>{{ heading }}</h1></section>
+<form class="catalog-form" method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <div class="catalog-form-actions">
+    <button type="submit">Save tour</button>
+    <a class="button button-secondary" href="{% url 'catalog:index' %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

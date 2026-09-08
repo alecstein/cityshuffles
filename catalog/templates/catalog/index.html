@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Catalog · CityShuffles{% endblock %}
+{% block content %}
+<section class="page-header catalog-page-header">
+  <h1>Catalog</h1>
+  <a class="button" href="{% url 'catalog:create' %}">Add tour</a>
+</section>
+
+<section class="catalog-list">
+  <h2>Tours ({{ products|length }})</h2>
+  {% for product in products %}
+    <article class="catalog-card">
+      <div class="catalog-card-heading">
+        <div><h4>{{ product.name }}</h4>{% if product.description %}<p>{{ product.description }}</p>{% else %}<p class="muted">No description yet.</p>{% endif %}</div>
+        <a class="button catalog-edit-button" href="{% url 'catalog:edit' product.pk %}">Edit</a>
+      </div>
+    </article>
+  {% empty %}
+    <p class="catalog-empty">No official tours have been added yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

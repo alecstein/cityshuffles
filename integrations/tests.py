@@ -19,6 +19,7 @@ from bookings.models import Guest, Tour, TourProduct
 from messaging.models import Contact, Message
 from .credentials import (
     cancel_requested,
+    parse_freetour_cookie_header,
     parse_token,
     read_secret,
     write_sync_progress,
@@ -30,6 +31,8 @@ from .credentials import (
 from .guruwalk import (AuthenticationError, GuruWalkClient, IntegrationError, SyncCancelled, TransportError,
                        apply_snapshot, departure_time, fetch_snapshot, rows, run_sync, sync_bounds)
 from .models import Connection, VendorBooking, VendorEvent
+from .models import VendorTour
+from .freetour import parse_booking_page
 
 
 EVENT = {"id": "event-1", "tourId": "product-1", "title": "Brooklyn Walk",
@@ -199,6 +202,11 @@ class IntegrationTests(TestCase):
 
     def test_post_commit_diagnostic_failure_does_not_reverse_success(self):
         save_token(token())
+        product = TourProduct.objects.create(name="Brooklyn Walk")
+        VendorTour.objects.create(
+            connection=self.connection, external_id=EVENT["tourId"],
+            name=EVENT["title"], product=product,
+        )
 
         def diagnostic(run_id, phase, **fields):
             if phase == "complete":
@@ -273,7 +281,8 @@ class IntegrationTests(TestCase):
         self.connection.save(update_fields=["sync_status", "last_attempt_at"])
         write_sync_progress("updating", 2, 5, "Updating Example Guest…")
         response = self.client.get(reverse("integrations:index"))
-        self.assertContains(response, "Cancel ×")
+        self.assertContains(response, "Cancel")
+        self.assertNotContains(response, "Cancel ×")
         self.assertContains(response, "Updating Example Guest")
         self.assertContains(response, 'max="5"')
         self.assertContains(response, 'value="2"')
@@ -439,6 +448,56 @@ class IntegrationTests(TestCase):
         with sync_lock() as acquired:
             self.assertTrue(acquired)
             self.assertFalse(run_sync())
+
+    def test_vendor_events_share_canonical_departure(self):
+        apply_snapshot(self.connection, [(EVENT, [BOOKING])])
+        product = TourProduct.objects.get()
+        freetour = Connection.objects.create(vendor="freetour", enabled=True)
+        VendorTour.objects.create(
+            connection=freetour, external_id="ft-product", name="Brooklyn Walk", product=product,
+        )
+        ft_event = dict(EVENT, id="ft-event", tourId="ft-product")
+        ft_booking = dict(BOOKING, id="ft-booking", username="booking:ft-booking")
+        apply_snapshot(freetour, [(ft_event, [ft_booking])], create_products=False)
+        self.assertEqual(Tour.objects.count(), 1)
+        self.assertEqual(VendorEvent.objects.count(), 2)
+        self.assertEqual(VendorEvent.objects.values_list("departure_id", flat=True).distinct().count(), 1)
+
+    def test_freetour_html_parser_keeps_cancelled_children_and_ids(self):
+        html = b'''<h1 class="booking-title">Bookings for 2026-09-08</h1>
+        <input id="dater" value="2026-09-08">
+        <div class="booking-tourcard" data-id="tour-78573">
+          <div class="booking-tourcard__title"><span>Example Walk</span></div>
+          <input name="id" value="event-44">
+          <div class="booking-tourcard__time">2:00 PM</div>
+          <div class="booking-tourcard__limit-value"><span>0</span>/<span>infinity</span></div>
+          <div class="booking-person booking-person--cancelled" data-booking-id="booking-55">
+            <div class="booking-person__name"><span>Example Guest</span></div>
+            <span class="adults">2</span><span class="children">1</span>
+            <div class="details-block__phone"><span class="details-block_content">+15550000000</span></div>
+            <div class="details-block__ref"><span>Ref:</span><span>ABC-55</span></div>
+          </div>
+        </div>'''
+        snapshot = parse_booking_page(html, timezone.localdate().replace(year=2026, month=9, day=8))
+        event, bookings = snapshot[0]
+        self.assertEqual((event["id"], event["tourId"], event["startTime"]),
+                         ("event-44", "78573", "14:00"))
+        self.assertEqual((bookings[0]["id"], bookings[0]["adults"], bookings[0]["children"], bookings[0]["status"]),
+                         ("booking-55", 2, 1, "cancelled"))
+
+    def test_freetour_cookie_validation_and_mapping_endpoint(self):
+        cookies = parse_freetour_cookie_header("Cookie: backoffice=secret; PHPSESSID=session")
+        self.assertEqual(cookies["backoffice"], "secret")
+        with self.assertRaises(ValueError):
+            parse_freetour_cookie_header("unrelated=value")
+        mapping = VendorTour.objects.create(connection=self.connection, external_id="tour-x", name="Tour X")
+        product = TourProduct.objects.create(name="Canonical Tour")
+        response = self.client.post(reverse("integrations:map_vendor_tour"), {
+            "mapping_id": mapping.pk, "product_id": product.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        mapping.refresh_from_db()
+        self.assertEqual(mapping.product, product)
 
     @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret")
     def test_gmail_oauth_start_and_callback(self):

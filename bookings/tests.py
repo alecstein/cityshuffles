@@ -57,7 +57,7 @@ class BookingDashboardTests(TestCase):
         self.assertContains(response, "Taylor Guest")
         self.assertContains(response, "Edit Taylor Guest")
         self.assertContains(response, "1 unread")
-        self.assertContains(response, "Open conversation with Taylor Guest")
+        self.assertContains(response, "View chat with Taylor Guest")
         self.assertContains(
             response,
             f'{reverse("messaging:inbox")}?conversation={self.conversation.pk}',
@@ -150,7 +150,16 @@ class BookingDashboardTests(TestCase):
             external_id="event-1",
             departure=self.tour,
         )
-        guest = Guest.objects.get(email="taylor@example.com")
+        contact = Contact.objects.create(
+            name="New Vendor Guest",
+            phone_number="+12125550006",
+        )
+        guest = Guest.objects.create(
+            first_name="New Vendor",
+            last_name="Guest",
+            contact=contact,
+            booked_tour=self.tour,
+        )
         vendor_booking = VendorBooking.objects.create(
             connection=connection,
             external_id="booking-1",
@@ -160,26 +169,135 @@ class BookingDashboardTests(TestCase):
         )
 
         response = self.client.get(reverse("bookings:index"))
-        self.assertContains(response, "New bookings")
-        self.assertContains(response, "Start chat")
+        self.assertContains(response, "New bookings (1)")
+        self.assertContains(response, "Send welcome")
+        self.assertContains(response, "Ignore")
+        self.assertNotContains(response, "Start all chats")
 
         response = self.client.post(
             reverse("bookings:start_booking_conversation", args=[vendor_booking.pk]),
         )
 
+        conversation = Conversation.objects.get(
+            contact=contact,
+            channel=Conversation.Channel.SMS,
+        )
         self.assertRedirects(
             response,
-            f"{reverse('messaging:inbox')}?conversation={self.conversation.pk}",
+            f"{reverse('messaging:inbox')}?conversation={conversation.pk}",
         )
         vendor_booking.refresh_from_db()
         self.assertFalse(vendor_booking.is_new)
         self.assertIsNotNone(vendor_booking.conversation_started_at)
         welcome = Message.objects.filter(
-            conversation=self.conversation,
+            conversation=conversation,
             direction=Message.Direction.OUTGOING,
         ).get()
         self.assertEqual(welcome.source_vendor, "guruwalk")
         self.assertEqual(welcome.sender_name, "staff")
+
+    def test_new_booking_from_any_vendor_is_shown(self):
+        connection = Connection.objects.create(vendor="freetour", enabled=True)
+        event = VendorEvent.objects.create(
+            connection=connection,
+            external_id="freetour-event-1",
+            departure=self.tour,
+        )
+        guest = Guest.objects.create(
+            first_name="Free",
+            last_name="Tour Guest",
+            contact=Contact.objects.create(
+                name="Free Tour Guest",
+                phone_number="+12125550007",
+            ),
+            booked_tour=self.tour,
+        )
+        VendorBooking.objects.create(
+            connection=connection,
+            external_id="freetour-booking-1",
+            booking=guest,
+            event=event,
+            source={"status": "confirmed"},
+        )
+
+        response = self.client.get(reverse("bookings:index"))
+
+        self.assertContains(response, "FreeTour")
+
+    def test_opening_chat_without_a_message_keeps_booking_new(self):
+        connection = Connection.objects.create(vendor="freetour", enabled=True)
+        event = VendorEvent.objects.create(
+            connection=connection,
+            external_id="freetour-event-1",
+            departure=self.tour,
+        )
+        guest = Guest.objects.create(
+            first_name="Open",
+            last_name="Chat",
+            contact=Contact.objects.create(
+                name="Open Chat",
+                email="open-chat@example.com",
+            ),
+            booked_tour=self.tour,
+        )
+        vendor_booking = VendorBooking.objects.create(
+            connection=connection,
+            external_id="freetour-booking-1",
+            booking=guest,
+            event=event,
+            source={"status": "confirmed"},
+        )
+
+        response = self.client.post(
+            reverse("bookings:open_booking_conversation", args=[vendor_booking.pk]),
+        )
+
+        conversation = Conversation.objects.get(contact=guest.contact, channel=Conversation.Channel.EMAIL)
+        self.assertRedirects(
+            response,
+            f"{reverse('messaging:inbox')}?conversation={conversation.pk}",
+        )
+        vendor_booking.refresh_from_db()
+        self.assertTrue(vendor_booking.is_new)
+        self.assertIsNone(vendor_booking.conversation_started_at)
+        self.assertFalse(Message.objects.filter(conversation=conversation).exists())
+
+        response = self.client.get(reverse("bookings:index"))
+        self.assertContains(response, "Open Chat")
+        self.assertContains(response, "New bookings (1)")
+
+    def test_ignoring_booking_removes_it_from_new_bookings_but_not_tour(self):
+        connection = Connection.objects.create(vendor="freetour", enabled=True)
+        event = VendorEvent.objects.create(
+            connection=connection,
+            external_id="freetour-event-1",
+            departure=self.tour,
+        )
+        guest = Guest.objects.create(
+            first_name="Ignored",
+            last_name="Guest",
+            contact=Contact.objects.create(name="Ignored Guest"),
+            booked_tour=self.tour,
+        )
+        vendor_booking = VendorBooking.objects.create(
+            connection=connection,
+            external_id="freetour-booking-1",
+            booking=guest,
+            event=event,
+            source={"status": "confirmed"},
+        )
+
+        response = self.client.post(
+            reverse("bookings:ignore_new_booking", args=[vendor_booking.pk]),
+        )
+
+        self.assertRedirects(response, reverse("bookings:index"))
+        vendor_booking.refresh_from_db()
+        self.assertFalse(vendor_booking.is_new)
+        self.assertEqual(guest.booked_tour_id, self.tour.pk)
+        response = self.client.get(reverse("bookings:index"))
+        self.assertContains(response, "New bookings (0)")
+        self.assertContains(response, "Ignored Guest")
 
     def test_dashboard_mentions_when_there_are_no_new_bookings(self):
         response = self.client.get(reverse("bookings:index"))
@@ -209,9 +327,9 @@ class BookingDashboardTests(TestCase):
 
         response = self.client.get(reverse("bookings:index"))
 
-        self.assertContains(response, 'Start chat with No Contact (no contact information)')
-        self.assertContains(response, 'Start chat with Empty Chat')
-        self.assertNotContains(response, 'Open conversation with Empty Chat')
+        self.assertContains(response, 'Send welcome to No Contact (no contact information)')
+        self.assertContains(response, 'Send welcome to Empty Chat')
+        self.assertNotContains(response, 'View chat with Empty Chat')
 
         Message.objects.create(
             conversation=empty_chat,
@@ -219,8 +337,8 @@ class BookingDashboardTests(TestCase):
             body="Now this chat has started.",
         )
         response = self.client.get(reverse("bookings:index"))
-        self.assertContains(response, 'Open conversation with Empty Chat')
-        self.assertNotContains(response, 'Start chat with Empty Chat')
+        self.assertContains(response, 'View chat with Empty Chat')
+        self.assertNotContains(response, 'Send welcome to Empty Chat')
 
     def test_start_chat_creates_welcome_for_existing_guest_without_messages(self):
         contact = Contact.objects.create(
@@ -252,53 +370,3 @@ class BookingDashboardTests(TestCase):
                 direction=Message.Direction.OUTGOING,
             ).exists()
         )
-
-    def test_start_all_conversations_processes_new_bookings(self):
-        connection = Connection.objects.create(vendor="guruwalk", enabled=True)
-        first_event = VendorEvent.objects.create(
-            connection=connection,
-            external_id="event-1",
-            departure=self.tour,
-        )
-        second_tour = Tour.objects.create(
-            name="Second Tour",
-            start_time=timezone.now(),
-        )
-        second_event = VendorEvent.objects.create(
-            connection=connection,
-            external_id="event-2",
-            departure=second_tour,
-        )
-        first_guest = Guest.objects.get(email="taylor@example.com")
-        second_contact = Contact.objects.create(
-            name="Second Guest",
-            phone_number="+12125550002",
-        )
-        second_guest = Guest.objects.create(
-            first_name="Second",
-            last_name="Guest",
-            email="second@example.com",
-            contact=second_contact,
-            booked_tour=second_tour,
-            imported=True,
-        )
-        VendorBooking.objects.create(
-            connection=connection,
-            external_id="booking-1",
-            booking=first_guest,
-            event=first_event,
-            source={"status": "confirmed"},
-        )
-        VendorBooking.objects.create(
-            connection=connection,
-            external_id="booking-2",
-            booking=second_guest,
-            event=second_event,
-            source={"status": "confirmed"},
-        )
-
-        response = self.client.post(reverse("bookings:start_all_conversations"))
-
-        self.assertRedirects(response, reverse("bookings:index"))
-        self.assertEqual(VendorBooking.objects.filter(is_new=True).count(), 0)
-        self.assertEqual(Message.objects.filter(direction=Message.Direction.OUTGOING).count(), 2)

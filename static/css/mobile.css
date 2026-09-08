@@ -31,9 +31,9 @@
     .my-parties { padding: 0 .8rem; }
     .my-guest-cell { gap: 0 .3rem; }
     .guest-row-main .edit-guest-button { height:28px; min-height:28px; width:28px; }
-    .edit-guest-button, .feedback-button, .guest-chat-icon { width: 36px; height: 40px; min-height: 40px; flex-shrink: 0; }
+    .edit-guest-button { width: 28px; height: 28px; min-height: 28px; flex: 0 0 28px; }
+    .attendance-button, .feedback-button, .guest-chat-icon { width: var(--compact-control-size); height: var(--compact-control-size); min-height: var(--compact-control-size); flex: 0 0 var(--compact-control-size); }
     .my-party-controls { gap: .6rem; }
-    .attendance-button { width: 40px; height: 40px; min-height: 40px; }
     .guest-vendor { font-size: .72rem; }
     .user-list-row { grid-template-columns: 1fr; gap: .3rem; }
     .party-column { gap: .3rem; }
@@ -64,18 +64,24 @@
     .guest-list li { flex-direction: row; flex-wrap: wrap; align-items: center; gap: .5rem; }
     .guest-actions { margin-left: auto; }
     .new-bookings-card { padding: 0; }
-    .new-bookings-heading { margin: 0; padding: .9rem; flex-wrap: wrap; gap: .7rem; }
     .new-bookings-empty { padding: .9rem; margin: 0; }
-    .new-bookings-heading h2 { font-size: 1.1rem; }
-    .new-bookings-heading button { font-size: .8rem; }
+    .new-bookings-summary h2 { font-size: 1.1rem; }
     .new-bookings-table-wrap { padding: 0 .9rem; overflow: visible; }
     .new-bookings-table, .new-bookings-table tbody { display: block; width: 100%; }
     .new-bookings-table thead { display: none; }
-    .new-bookings-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: .85rem 0; gap: .3rem .5rem; border-bottom: 1px solid var(--border); }
+    .new-bookings-table tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: .85rem 0; gap: .3rem; border-bottom: 1px solid var(--border); }
     .new-bookings-table td { padding: 0 !important; border: 0; white-space: normal; overflow-wrap: anywhere; }
     .new-bookings-table td:nth-child(1), .new-bookings-table td:nth-child(2) { grid-column: 1 / -1; }
-    .new-bookings-table td:nth-child(3), .new-bookings-table td:nth-child(4) { grid-column: 1; font-size: .8rem; color: var(--muted); }
-    .new-bookings-table td:last-child { grid-column: 2; grid-row: 3 / 5; align-self: center; }
+    .new-bookings-table td:nth-child(2) { font-size: .8rem; }
+    .new-bookings-table td:last-child { grid-column: 1; grid-row: auto; align-self: stretch; }
+    .new-booking-actions { display: flex; width: 100%; align-items: center; justify-content: flex-end; gap: .45rem; padding-top: 0.5rem;}
+    .new-booking-actions .new-booking-ignore-form { order: 1; }
+    .new-booking-actions .new-booking-welcome-form,
+    .new-booking-actions .new-booking-welcome-action { order: 2; }
+    .new-booking-actions .new-booking-chat-form,
+    .new-booking-actions .new-booking-chat-action { order: 3; }
+    .new-booking-actions .new-booking-ignore-form { margin-right: auto !important; }
+    .my-guest-cell .guest-chat-actions { justify-content: flex-end; gap: .6rem; }
     .template-card, .integration-card { padding: 1rem; }
     .template-card-heading { flex-wrap: wrap; gap: .6rem; }
     .integration-heading h2 { font-size: 1.2rem; }
@@ -86,7 +92,8 @@
     .messaging-page.mobile-composing .app-sidebar { display: none; }
     .messaging-page.mobile-chat-active .messenger-page-header { display: none; }
     .messaging-page .app-main { display: flex; flex-direction: column; min-height: 0; }
-    .messaging-page .page { flex: 1; min-height: 0; padding: 0; display: flex; flex-direction: column; }
+    .messaging-page .page { flex: 1; min-height: 0; padding: 1rem .75rem; display: flex; flex-direction: column; }
+    .messaging-page .page-header { margin-bottom: 1rem; }
     .messenger-page-header { padding: .6rem .75rem; margin: 0; flex: 0 0 auto; }
     .messenger-page-header h1 { font-size: 1.2rem; }
     .new-conversation > summary { font-size: .85rem; padding: .55rem .75rem; }

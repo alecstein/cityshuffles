@@ -1,7 +1,27 @@
+import hashlib
+from datetime import timezone as datetime_timezone
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from messaging.models import Contact, Conversation, Message
+
+
+def departure_fingerprint(product_id, start_time):
+    """Return the canonical identity for one operating departure.
+
+    Vendor event ids are intentionally excluded: several marketplaces may
+    sell seats on the same departure.  The current operating rule is one
+    departure per product and exact start instant.
+    """
+    if not product_id or not start_time:
+        return None
+    if timezone.is_naive(start_time):
+        start_time = timezone.make_aware(start_time, timezone.get_default_timezone())
+    instant = start_time.astimezone(datetime_timezone.utc).replace(microsecond=0)
+    natural_key = f"v1:{product_id}:{instant.isoformat()}"
+    return hashlib.sha256(natural_key.encode()).hexdigest()
 
 
 class Guide(models.Model):
@@ -23,6 +43,7 @@ class Guide(models.Model):
 class TourProduct(models.Model):
     """A tour offering, independent of its scheduled departures."""
     name = models.CharField(max_length=240)
+    description = models.TextField(blank=True)
 
     def __str__(self):
         return self.name
@@ -37,12 +58,20 @@ class Tour(models.Model):
     report = models.TextField(blank=True)
     name = models.CharField(max_length=240)
     start_time = models.DateTimeField()
+    fingerprint = models.CharField(max_length=64, unique=True, null=True, editable=False)
 
     class Meta:
         ordering = ["start_time", "name"]
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        self.fingerprint = departure_fingerprint(self.product_id, self.start_time)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and {"product", "product_id", "start_time"} & set(update_fields):
+            kwargs["update_fields"] = list(set(update_fields) | {"fingerprint"})
+        return super().save(*args, **kwargs)
 
     @property
     def people_count(self):
@@ -189,8 +218,6 @@ class Guest(models.Model):
         if vendor_booking is not None:
             if vendor_booking.conversation_started_at:
                 return True
-            if vendor_booking.is_new:
-                return False
         if hasattr(self, "_has_messages"):
             return self._has_messages
         return self.contact.conversations.filter(messages__isnull=False).exists()

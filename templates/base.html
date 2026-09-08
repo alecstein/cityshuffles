@@ -8,9 +8,9 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#20342f">
 
-    <link rel="stylesheet" href="{% static 'css/site.css' %}?v=30">
-    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=10">
-    <link rel="stylesheet" href="{% static 'css/guest-controls.css' %}?v=15">
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v=38">
+    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=14">
+    <link rel="stylesheet" href="{% static 'css/guest-controls.css' %}?v=18">
 
     <script
         src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
@@ -44,8 +44,9 @@
                 {% if user.is_staff %}<a class="app-nav-link {% if all_tours %}is-active{% endif %}" href="{% url 'mytours:all' %}">All Tours</a>{% endif %}
                 <a class="app-nav-link {% if request.resolver_match.app_name == 'messaging' %}is-active{% endif %}" href="{% url 'messaging:inbox' %}">Messages {% include "messaging/partials/nav_unread.html" %}</a>
                 <a class="app-nav-link {% if request.resolver_match.app_name == 'message_templates' %}is-active{% endif %}" href="{% url 'message_templates:index' %}">Templates</a>
-                <a class="app-nav-link {% if request.resolver_match.app_name == 'integrations' %}is-active{% endif %}" href="{% url 'integrations:index' %}">Integrations</a>
+                {% if user.is_staff or user.is_superuser %}<a class="app-nav-link {% if request.resolver_match.app_name == 'catalog' %}is-active{% endif %}" href="{% url 'catalog:index' %}">Catalog</a>{% endif %}
                 {% if user.is_staff or user.is_superuser %}<a class="app-nav-link {% if request.resolver_match.app_name == 'users' %}is-active{% endif %}" href="{% url 'users:index' %}">Users</a>{% endif %}
+                <a class="app-nav-link {% if request.resolver_match.app_name == 'integrations' %}is-active{% endif %}" href="{% url 'integrations:index' %}">Integrations</a>
             </nav>
         </aside>
         <div class="app-main">

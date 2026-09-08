@@ -7,6 +7,7 @@ import tempfile
 import time
 import threading
 from contextlib import contextmanager
+from http.cookies import CookieError, SimpleCookie
 import fcntl
 from django.conf import settings
 
@@ -65,6 +66,63 @@ def read_secret(filename):
         return (secret_dir() / filename).read_text().strip()
     except FileNotFoundError:
         return ""
+
+
+def parse_freetour_cookie_header(value):
+    """Validate a copied Cookie request header without logging its contents."""
+    value = value.strip()
+    if value.lower().startswith("cookie:"):
+        value = value[7:].strip()
+    if not value or len(value) > 32_768 or "\n" in value or "\r" in value:
+        raise ValueError("Paste the Cookie header from a signed-in FreeTour request.")
+    cookies = {}
+    for part in value.split(";"):
+        name, separator, cookie_value = part.strip().partition("=")
+        if not separator or not re.fullmatch(r"[A-Za-z0-9_-]+", name) or not cookie_value:
+            raise ValueError("The FreeTour Cookie header is not formatted correctly.")
+        cookies[name] = cookie_value
+    if "backoffice" not in cookies or not ({"PHPSESSID", "freetour"} & cookies.keys()):
+        raise ValueError("This does not look like a signed-in FreeTour Cookie header.")
+    return cookies
+
+
+def save_freetour_cookies(cookies):
+    if not isinstance(cookies, dict) or not cookies:
+        raise ValueError("FreeTour cookies are missing.")
+    save_secret("freetour.cookies", json.dumps(cookies, separators=(",", ":")))
+
+
+def read_freetour_cookies():
+    try:
+        cookies = json.loads(read_secret("freetour.cookies"))
+    except (TypeError, ValueError, UnicodeError):
+        return {}
+    if not isinstance(cookies, dict):
+        return {}
+    return {
+        str(name): str(value)
+        for name, value in cookies.items()
+        if re.fullmatch(r"[A-Za-z0-9_-]+", str(name)) and value
+    }
+
+
+def update_freetour_cookies(set_cookie_headers):
+    cookies = read_freetour_cookies()
+    for header in set_cookie_headers or ():
+        parsed = SimpleCookie()
+        try:
+            parsed.load(header)
+        except CookieError:
+            continue
+        for name, morsel in parsed.items():
+            if re.fullmatch(r"[A-Za-z0-9_-]+", name) and morsel.value:
+                cookies[name] = morsel.value
+    if cookies:
+        save_freetour_cookies(cookies)
+
+
+def freetour_cookie_header():
+    return "; ".join(f"{name}={value}" for name, value in read_freetour_cookies().items())
 
 
 def save_gmail_refresh_token(value):
@@ -189,3 +247,74 @@ def sync_lock(timeout=0, poll_interval=0.05):
             yield True
         finally:
             fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+@contextmanager
+def freetour_sync_lock(timeout=0, poll_interval=0.05):
+    """Serialize FreeTour cookie refreshes and imports across processes."""
+    with (secret_dir() / "freetour.lock").open("a") as handle:
+        deadline = time.monotonic() + max(0, float(timeout or 0))
+        acquired = False
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(min(max(0.001, poll_interval), max(0, deadline - time.monotonic())))
+        if not acquired:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def request_freetour_cancel_for_run(run_id=None):
+    save_secret("freetour.cancel", str(run_id or ""))
+
+
+def clear_freetour_cancel(run_id=None):
+    path = secret_dir() / "freetour.cancel"
+    if run_id:
+        try:
+            if path.read_text().strip() not in ("", str(run_id)):
+                return
+        except FileNotFoundError:
+            return
+    path.unlink(missing_ok=True)
+
+
+def freetour_cancel_requested(run_id=None):
+    path = secret_dir() / "freetour.cancel"
+    if not path.exists():
+        return False
+    if not run_id:
+        return True
+    try:
+        value = path.read_text().strip()
+    except (FileNotFoundError, OSError):
+        return False
+    return not value or value == str(run_id)
+
+
+def write_freetour_sync_progress(phase, current=0, total=0, message="", run_id=None):
+    save_secret("freetour.sync-progress", json.dumps({
+        "run_id": str(run_id or ""),
+        "phase": str(phase),
+        "current": max(0, int(current)),
+        "total": max(0, int(total)),
+        "message": str(message),
+        "updated_at": time.time(),
+    }, separators=(",", ":")))
+
+
+def read_freetour_sync_progress():
+    try:
+        progress = json.loads(read_secret("freetour.sync-progress"))
+    except (TypeError, ValueError, UnicodeError):
+        return {}
+    return progress if isinstance(progress, dict) else {}

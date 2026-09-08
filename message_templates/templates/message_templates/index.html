@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Templates · CityShuffles{% endblock %}
 {% block content %}
-<section class="page-header template-page-header"><h1>Templates</h1></section>
-<div class="template-new-button"><button type="button" onclick="document.getElementById('new-template-editor').hidden=false;this.hidden=true">New template</button></div>
+<section class="page-header template-page-header">
+    <h1>Templates</h1>
+    <button id="new-template-button" type="button" onclick="document.getElementById('new-template-editor').hidden=false;this.hidden=true">New template</button>
+</section>
 <div id="new-template-editor" class="template-editor template-new-editor" hidden>
     <form method="post" action="{% url 'message_templates:create' %}">
         {% csrf_token %}{% include "message_templates/fields.html" with form=new_form %}
-        <div class="template-form-actions"><button type="submit">Save template</button><button type="button" class="button-secondary" onclick="document.getElementById('new-template-editor').hidden=true;document.querySelector('.template-new-button button').hidden=false">Cancel</button></div>
+        <div class="template-form-actions"><button type="submit">Save template</button><button type="button" class="button-secondary" onclick="document.getElementById('new-template-editor').hidden=true;document.getElementById('new-template-button').hidden=false">Cancel</button></div>
     </form>
 </div>
 <section class="template-list">

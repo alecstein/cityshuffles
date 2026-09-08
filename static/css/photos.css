@@ -5,18 +5,17 @@
 .photo-heading { display:flex; align-items:center; gap:.5rem; }
 .photo-section-header [data-photo-preview] { display:inline-flex; margin:0; }
 .photo-section-header .photo-preview-link { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; border-radius:6px; color:#205e50; text-decoration:none; }
-.photo-section-header .photo-preview-link:hover { background:#e5f0eb; }
+.photo-section-header .photo-preview-link:hover { background:#eee; }
 .photo-section-header .photo-preview-link:focus-visible { outline:2px solid #205e50; outline-offset:2px; }
 .photo-upload-label { position:relative; cursor:pointer; overflow:hidden; }.photo-upload-label input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
 .photo-add-tile { display:grid; place-items:center; width:100%; height:160px; padding:0; border:1px solid #d9dfdc; border-radius:10px; background:#f5f6f2; color:#205e50; font-size:2.4rem; font-weight:400; line-height:1; }
-.photo-add-tile:hover { background:#e5f0eb; }
+.photo-add-tile:hover { background:#eee; }
 .photo-add-tile span { pointer-events:none; }
-.photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:1rem; margin-top:1rem; }
+.photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:1rem; }
 .photo-grid figure { margin:0; min-width:0; }.photo-grid img { display:block; width:100%; height:160px; object-fit:cover; border-radius:10px; }
 .tour-photos .photo-grid figure { position:relative; }
 .tour-photos .photo-remove { position:absolute; top:6px; right:6px; display:grid; place-items:center; width:36px; height:36px; min-height:0; padding:0; margin:0; border:1px solid #d9dfdc; border-radius:50%; background:white; color:#20372e; box-shadow:0 1px 5px #0003; cursor:pointer; }
 .tour-photos .photo-remove svg { display:block; width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; }
-.tour-photos .photo-remove:hover { background:#fbeaea; color:#a83232; }
 .tour-photos [hidden] { display:none !important; }
 .photo-grid figcaption { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:.5rem 0; font-size:.8rem; }.photo-grid figcaption span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }.photo-grid small { color:#68766f; }
 [data-photo-progress] p { overflow-wrap:anywhere; }.upload-failed { color:#a83232; }
