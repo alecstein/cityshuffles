@@ -1,0 +1,5 @@
+<div class="my-parties" id="my-parties" hx-include="#guest-row-order">
+    <input type="hidden" id="guest-row-order" name="row_order" value="{% for row in guest_rows %}{{ row.guest.pk }},{% endfor %}">
+    {% for row in guest_rows %}{% include "mytours/guest.html" with guest=row.guest form=row.form %}{% empty %}<p>No bookings yet.</p>{% endfor %}
+</div>
+{% if update_total %}{% include "mytours/partials/people_total.html" with tour=total_tour %}{% endif %}

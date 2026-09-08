@@ -1,0 +1,6 @@
+<div id="photos-quick-action" {% if update_quick_actions %}hx-swap-oob="outerHTML"{% endif %}>
+    <form method="post" action="{% url 'mytours:send_group_message' selected.pk %}" hx-post="{% url 'mytours:send_group_message' selected.pk %}" hx-target="#group-message-history" hx-swap="outerHTML" hx-disabled-elt="find button" hx-include="#group-message-history input">
+        {% csrf_token %}<input type="hidden" name="kind" value="photos">
+        <button type="submit" data-send-photos {% if not photos_ready %}disabled title="Upload photos first"{% endif %}>Send photos{% if photos_action.successfully_sent %} ✓{% endif %}</button>
+    </form>
+</div>

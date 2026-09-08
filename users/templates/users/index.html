@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Users · CityShuffles{% endblock %}
+{% block content %}
+<section class="page-header"><h1>Users</h1><a class="button" href="{% url 'users:create' %}">Add user</a></section>
+<div class="users-list">{% for account in users %}<a class="user-list-row" href="{% url 'users:edit' account.pk %}"><strong>{{ account.get_full_name|default:account.username }}</strong><span>{{ account.username }}</span><span>{{ account.email }}</span><span>{% if account.is_staff or account.is_superuser %}Admin{% else %}Guide{% endif %}{% if not account.is_active %} · Inactive{% endif %}</span></a>{% endfor %}</div>
+{% endblock %}

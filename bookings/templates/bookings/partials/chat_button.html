@@ -1,0 +1,23 @@
+    <span class="guest-actions">
+        {% if guest.chat_started and guest.conversation %}
+        <a
+            class="jump-link"
+            href="{% url 'messaging:inbox' %}?conversation={{ guest.conversation.pk }}"
+            aria-label="Open conversation with {{ guest.full_name }}{% if guest.unread_count %}, {{ guest.unread_count }} unread messages{% endif %}"
+            title="Open conversation"
+        >
+            <span>View chat</span>{% if guest.unread_count %}<span class="chat-count-badge">{{ guest.unread_count }}</span>{% else %}{% include "mytours/partials/chat_icon.html" %}{% endif %}
+        </a>
+        {% elif guest.contact.phone_number or guest.contact.email %}
+        <form method="post" action="{% url 'bookings:start_guest_conversation' guest.pk %}" class="chat-action-form">
+            {% csrf_token %}
+            <button type="submit" class="jump-link jump-link-start" aria-label="Start chat with {{ guest.full_name }}" title="Send the welcome message and start a chat">
+                <span>Start chat</span>{% include "mytours/partials/chat_icon.html" %}
+            </button>
+        </form>
+        {% else %}
+        <button type="button" class="jump-link jump-link-disabled" disabled aria-label="Start chat with {{ guest.full_name }} (no contact information)" title="Add a phone number or email address to start a chat">
+            <span>Start chat</span>{% include "mytours/partials/chat_icon.html" %}
+        </button>
+        {% endif %}
+    </span>

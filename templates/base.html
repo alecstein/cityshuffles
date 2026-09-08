@@ -1,0 +1,75 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}CityShuffles{% endblock %}</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#20342f">
+
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v=30">
+    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=10">
+    <link rel="stylesheet" href="{% static 'css/guest-controls.css' %}?v=15">
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
+        integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
+        crossorigin="anonymous"
+    ></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    {% if user.is_authenticated %}
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="brand" href="{% url 'bookings:index' %}">CityShuffles</a>
+
+            <a href="{% url 'users:profile' %}" class="account-summary" aria-label="Edit your profile">
+                <span class="account-avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
+                <span class="account-copy">
+                    <span class="account-label">Logged in as</span>
+                    <strong>{{ user.get_full_name|default:user.username }}</strong>
+                    <span class="account-role">{% if user.is_staff or user.is_superuser %}Admin{% else %}Guide{% endif %}</span>
+                </span>
+            </a>
+
+            <form method="post" action="{% url 'logout' %}" class="logout-form">
+                {% csrf_token %}
+                <button type="submit" class="link-button">Log out</button>
+            </form>
+
+            <nav class="app-nav" aria-label="Apps">
+                <a class="app-nav-link {% if request.resolver_match.app_name == 'bookings' %}is-active{% endif %}" href="{% url 'bookings:index' %}">Dashboard</a>
+                <a class="app-nav-link {% if request.resolver_match.app_name == 'mytours' and not all_tours %}is-active{% endif %}" href="{% url 'mytours:index' %}">My Tours</a>
+                {% if user.is_staff %}<a class="app-nav-link {% if all_tours %}is-active{% endif %}" href="{% url 'mytours:all' %}">All Tours</a>{% endif %}
+                <a class="app-nav-link {% if request.resolver_match.app_name == 'messaging' %}is-active{% endif %}" href="{% url 'messaging:inbox' %}">Messages {% include "messaging/partials/nav_unread.html" %}</a>
+                <a class="app-nav-link {% if request.resolver_match.app_name == 'message_templates' %}is-active{% endif %}" href="{% url 'message_templates:index' %}">Templates</a>
+                <a class="app-nav-link {% if request.resolver_match.app_name == 'integrations' %}is-active{% endif %}" href="{% url 'integrations:index' %}">Integrations</a>
+                {% if user.is_staff or user.is_superuser %}<a class="app-nav-link {% if request.resolver_match.app_name == 'users' %}is-active{% endif %}" href="{% url 'users:index' %}">Users</a>{% endif %}
+            </nav>
+        </aside>
+        <div class="app-main">
+    {% else %}
+    <header class="site-header">
+        <a class="brand" href="{% url 'core:home' %}">CityShuffles</a>
+    </header>
+    <div class="app-main">
+    {% endif %}
+
+    {% if messages %}
+        <div class="flash-wrap">
+            {% for message in messages %}
+                <div class="flash {{ message.tags }}" role="status">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="page">
+        {% block content %}{% endblock %}
+    </main>
+
+        </div>
+    {% if user.is_authenticated %}</div>{% endif %}
+{% if user.is_authenticated %}<script src="{% static 'js/notifications.js' %}?v=1" defer></script>{% endif %}
+</body>
+</html>

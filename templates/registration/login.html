@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Log in · CityShuffles{% endblock %}
+
+{% block content %}
+<div class="login-wrap">
+    <form method="post" class="login-card">
+        {% csrf_token %}
+        <h1>Log in</h1>
+
+        {% if form.errors %}
+            <div class="login-error">That username/password combination did not work.</div>
+        {% endif %}
+
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+
+        {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+        {% endif %}
+
+        <button type="submit">Log in</button>
+    </form>
+</div>
+{% endblock %}

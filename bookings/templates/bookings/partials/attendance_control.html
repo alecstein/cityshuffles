@@ -1,0 +1,11 @@
+<form method="post" action="{{ action_url }}" class="attendance-actions"
+      {% if hx_target %}hx-post="{{ action_url }}" hx-target="{{ hx_target }}" hx-swap="{{ hx_swap|default:'outerHTML' }}"{% if hx_sync %} hx-sync="{{ hx_sync }}"{% endif %}{% endif %}>
+    {% csrf_token %}
+    <button type="submit" name="attendance"
+            value="{% if guest.attendance == 'expected' %}present{% elif guest.attendance == 'present' %}canceled{% else %}expected{% endif %}"
+            class="attendance-button {% if guest.attendance == 'present' %}is-checked{% elif guest.attendance == 'canceled' %}is-canceled{% else %}is-expected{% endif %}"
+            aria-label="{{ guest.full_name }}: {% if guest.attendance == 'present' %}checked in; mark canceled{% elif guest.attendance == 'canceled' %}canceled; restore booking{% else %}not checked in; check in{% endif %}"
+            title="Cycle check-in status">
+        {% include "bookings/partials/attendance_icon.html" %}
+    </button>
+</form>

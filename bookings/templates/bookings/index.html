@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · CityShuffles{% endblock %}
+
+{% block content %}
+<section class="page-header bookings-page-header">
+    <div>
+        <h1>Dashboard</h1>
+    </div>
+</section>
+
+<section class="new-bookings-card" aria-labelledby="new-bookings-heading">
+    <div class="new-bookings-heading">
+        <div>
+            <h2 id="new-bookings-heading">New bookings</h2>
+        </div>
+        <form method="post" action="{% url 'bookings:start_all_conversations' %}">
+            {% csrf_token %}
+            <button type="submit" {% if not new_bookings %}disabled{% endif %}>Start all chats {% include "mytours/partials/chat_icon.html" %}</button>
+        </form>
+    </div>
+    {% if new_bookings %}
+    <div class="new-bookings-table-wrap">
+        <table class="new-bookings-table">
+            <thead>
+                <tr><th>Guest</th><th>Tour</th><th>Vendor</th><th>Time</th><th><span class="sr-only">Action</span></th></tr>
+            </thead>
+            <tbody>
+                {% for vendor_booking in new_bookings %}
+                <tr>
+                    <td>
+                        <strong>{{ vendor_booking.booking.full_name }}</strong>
+                    </td>
+                    <td>{{ vendor_booking.event.departure.name }}</td>
+                    <td>{{ vendor_booking.display_vendor }}</td>
+                    <td class="new-booking-time">{{ vendor_booking.event.departure.start_time|date:"M j, g:i A" }}</td>
+                    <td class="new-booking-action">
+                        {% include "bookings/partials/chat_button.html" with guest=vendor_booking.booking %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted new-bookings-empty">No new bookings right now.</p>
+    {% endif %}
+</section>
+
+<div class="bookings-layout">
+    <section class="tour-list" aria-label="Upcoming tours">
+        {% for group in date_groups %}
+        <details class="booking-date-group" open>
+        <summary class="booking-date-heading">
+            <h2>{{ group.date|date:"l, F j, Y" }}</h2>
+        </summary>
+        <div class="booking-date-tours">
+        {% for tour in group.tours %}
+        <article class="tour-card booking-tour">
+            <header class="tour-summary">
+                <div>
+                    <h3><a class="tour-detail-link" href="{% url 'mytours:all' %}?date={{ tour.start_time|date:'Y-m-d' }}&tour={{ tour.pk }}">{{ tour.name }}</a></h3>
+                    <p class="tour-date">{{ group.date|date:"l, F j, Y" }}</p>
+                    <p class="tour-time">{{ tour.start_time|date:"g:i A" }} · Guide: {% if tour.responsible %}{{ tour.responsible.get_full_name|default:tour.responsible.username }}{% else %}Unassigned{% endif %}</p>
+                </div>
+            </header>
+
+            <ul class="guest-list" aria-label="Guests booked on this tour">
+                {% for guest in tour.guests.all %}
+                {% include "bookings/partials/guest_row.html" %}
+                {% empty %}
+                <li class="guest-empty">No guests booked yet.</li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+        </div>
+        </details>
+        {% empty %}
+        <div class="empty-card">
+            <h2>No tours scheduled</h2>
+            <p class="muted">Tours will appear here when they are added.</p>
+        </div>
+        {% endfor %}
+    </section>
+
+</div>
+{% if add_booking_tour %}
+    {% url 'bookings:add_booking' add_booking_tour.pk as modal_action_url %}
+{% endif %}
+{% include "mytours/partials/add_booking_modal.html" with action_url=modal_action_url add_form=add_booking_form modal_tour=add_booking_tour modal_open=add_booking_tour %}
+{% endblock %}

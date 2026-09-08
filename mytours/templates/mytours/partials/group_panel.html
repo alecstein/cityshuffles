@@ -1,0 +1,29 @@
+<section class="group-messages" aria-labelledby="group-messages-heading">
+    <h2 id="group-messages-heading">Group messages</h2>
+    <div class="group-message-panel" title="Sends individually to guests on this tour, excluding canceled bookings, using their latest incoming channel or saved preference.">
+        <div class="group-quick-actions">
+            {% include "mytours/partials/group_quick_actions.html" %}
+            {% include "mytours/partials/photos_action.html" %}
+            <button type="button" class="button-secondary" onclick="const editor=document.getElementById('custom-group-editor'); editor.hidden=!editor.hidden; this.setAttribute('aria-expanded', !editor.hidden); if(!editor.hidden) editor.querySelector('textarea').focus()" aria-controls="custom-group-editor" aria-expanded="false">Custom message</button>
+        </div>
+        <form id="custom-group-editor" hidden method="post" action="{% url 'mytours:send_group_message' selected.pk %}"
+              hx-post="{% url 'mytours:send_group_message' selected.pk %}" hx-target="#group-message-history" hx-swap="outerHTML" hx-disabled-elt="find button" hx-include="#group-message-history input">
+            {% csrf_token %}<input type="hidden" name="kind" value="custom"><input type="hidden" name="request_key" value="{{ custom_request_key }}">
+            <label for="custom-group-body" class="sr-only">Custom message</label>
+            <textarea id="custom-group-body" name="body" rows="4" maxlength="10000" required placeholder="Send a custom message to this tour…"></textarea>
+            <button type="submit">Send</button>
+            <button type="button" class="button-secondary" onclick="this.form.hidden=true; document.querySelector('[aria-controls=custom-group-editor]').setAttribute('aria-expanded','false')">Cancel</button>
+        </form>
+    </div>
+    {% include "mytours/partials/group_history.html" %}
+</section>
+<script>
+document.body.addEventListener('group-message-sent', function(event) {
+    const form = document.getElementById('custom-group-editor');
+    if (!form) return;
+    form.querySelector('textarea').value = '';
+    form.querySelector('[name=request_key]').value = event.detail.requestKey;
+    form.hidden = true;
+    document.querySelector('[aria-controls=custom-group-editor]').setAttribute('aria-expanded', 'false');
+});
+</script>

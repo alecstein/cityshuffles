@@ -1,0 +1,25 @@
+<div id="group-message-history" class="group-message-history" hx-get="{% url 'mytours:group_history' selected.pk %}" hx-trigger="every 8s" hx-swap="outerHTML" hx-include="#group-message-history input[name=expanded]" hx-sync="this:queue last">
+    {% if group_error %}<p class="form-error" role="alert">{{ group_error }}</p>{% endif %}
+    <h3>Message history</h3>
+    {% for action in group_actions %}
+    <details class="group-history-row" {% if action.expanded %}open{% endif %} ontoggle="this.querySelector('[name=expanded]').disabled = !this.open">
+        <summary><strong>{{ action.template_name }}</strong><span>{{ action.created_at|date:"M j, g:i A" }}</span><span>{{ action.deliveries.count }} recipients</span>{% if action.kind != 'custom' and action.successfully_sent %}<span class="group-sent-check" aria-label="Successfully sent">✓</span>{% endif %}</summary>
+        <input type="hidden" name="expanded" value="{{ action.pk }}" {% if not action.expanded %}disabled{% endif %}>
+        <p class="group-message-body">{{ action.template_body }}</p>
+        <ul class="group-recipient-list">
+        {% for delivery in action.deliveries.all %}
+            <li class="group-recipient group-recipient-{{ delivery.row_color }}">
+                <strong>{{ delivery.guest_name }}</strong>
+                <span>{{ delivery.status_label }}{% if delivery.message %} · {{ delivery.message.conversation.get_channel_display }}{% endif %}</span>
+                {% if delivery.message.error_message %}<small>{{ delivery.message.error_message }}</small>{% elif delivery.state == 'review' %}<small>{{ delivery.detail }}</small>{% endif %}
+                {% if delivery.can_retry %}<form method="post" action="{% url 'mytours:retry_thank_you' delivery.pk %}" hx-post="{% url 'mytours:retry_thank_you' delivery.pk %}" hx-target="#group-message-history" hx-swap="outerHTML" hx-include="#group-message-history input" hx-disabled-elt="find button">
+                    {% csrf_token %}<input type="hidden" name="group_history" value="1"><button type="submit" class="button-secondary">Try again</button>
+                </form>{% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+    </details>
+    {% empty %}<p class="muted">No group messages sent yet.</p>{% endfor %}
+</div>
+{% if update_quick_actions %}{% include "mytours/partials/group_quick_actions.html" %}{% endif %}
+{% if update_quick_actions %}{% include "mytours/partials/photos_action.html" %}{% endif %}

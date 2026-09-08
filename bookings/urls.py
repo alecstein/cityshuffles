@@ -1,0 +1,16 @@
+from django.urls import path
+from . import views
+
+app_name = "bookings"
+
+urlpatterns = [
+    path("", views.index, name="index"),
+    path("tours/<int:tour_pk>/add-booking/", views.add_booking, name="add_booking"),
+    path("new/<int:pk>/start-conversation/", views.start_booking_conversation, name="start_booking_conversation"),
+    path("new/start-all-conversations/", views.start_all_conversations, name="start_all_conversations"),
+    path("guests/<int:pk>/start-conversation/", views.start_guest_conversation, name="start_guest_conversation"),
+    path("guests/<int:pk>/edit/", views.guest_edit, name="guest_edit"),
+    path("guests/<int:pk>/update/", views.guest_update, name="guest_update"),
+    path("guests/<int:pk>/attendance/", views.guest_attendance_update, name="guest_attendance_update"),
+    path("guests/<int:pk>/delete/", views.guest_delete, name="guest_delete"),
+]

@@ -1,0 +1,6 @@
+<div id="closing-quick-action" {% if update_quick_actions %}hx-swap-oob="outerHTML"{% endif %}>
+    <form method="post" action="{% url 'mytours:send_group_message' selected.pk %}" hx-post="{% url 'mytours:send_group_message' selected.pk %}" hx-target="#group-message-history" hx-swap="outerHTML" hx-disabled-elt="find button" hx-include="#group-message-history input">
+        {% csrf_token %}<input type="hidden" name="kind" value="closing">
+        <button type="submit" {% if not closing_template.is_active %}disabled{% endif %} {% if closing_action %}title="Already requested. See message history for delivery results."{% endif %}>Closing message{% if closing_action.successfully_sent %} <span aria-label="Closing message successfully sent">✓</span>{% endif %}</button>
+    </form>
+</div>

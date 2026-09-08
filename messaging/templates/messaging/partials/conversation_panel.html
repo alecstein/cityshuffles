@@ -1,0 +1,90 @@
+<div class="conversation-header">
+    <a href="{% url 'messaging:inbox' %}" class="mobile-chat-back" aria-label="Back to chats">‹</a>
+    <div>
+        <div class="contact-heading">
+            <h2>{{ selected.contact.name }}</h2>
+            <details class="contact-editor" {% if contact_edit_open %}open{% endif %}>
+                <summary class="edit-guest-button" aria-label="Edit {{ selected.contact.name }}" title="Edit contact">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="m16.5 4.5 3 3M5 19l3.4-.7L19.5 7.2a2.1 2.1 0 0 0-3-3L5.4 15.3 5 19Z"></path>
+                    </svg>
+                </summary>
+                <form class="contact-edit-form" method="post"
+                      action="{% url 'messaging:edit_contact' selected.pk %}"
+                      hx-post="{% url 'messaging:edit_contact' selected.pk %}"
+                      hx-target="#conversation-panel">
+                    {% csrf_token %}
+                    {{ contact_form.as_p }}
+                    <button type="submit">Save</button>
+                    <button type="button" onclick="this.closest('details').open = false">Cancel</button>
+                </form>
+            </details>
+        </div>
+        <div class="conversation-meta">
+            {% if selected.channel == 'email' %}
+                {{ selected.contact.email }}
+            {% else %}
+                {{ selected.contact.phone_number }}
+            {% endif %}
+            <span>·</span>
+            {{ selected.get_channel_display }}
+        </div>
+    </div>
+
+</div>
+{% include "messaging/partials/channel_tabs.html" %}
+<div
+    id="message-list"
+    class="message-list"
+    hx-get="{% url 'messaging:message_list' selected.pk %}"
+    hx-trigger="every 4s, notification-refresh"
+    hx-swap="innerHTML"
+>
+    {% include "messaging/partials/message_list.html" %}
+</div>
+
+<form
+    class="composer"
+    method="post"
+    action="{% url 'messaging:send' selected.pk %}"
+    hx-post="{% url 'messaging:send' selected.pk %}"
+    hx-target="#conversation-panel"
+    hx-swap="innerHTML"
+>
+    {% csrf_token %}
+    <label class="template-picker">
+        <span>Template</span>
+        <select id="message-template-select" onchange="applyMessageTemplate(this)">
+            <option value="">choose message</option>
+            {% for template in message_templates %}
+                <option value="{{ template.pk }}" data-template-body="{{ template.channel_body|escape }}">{{ template.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    {{ message_form.body }}
+    {% if message_form.non_field_errors %}
+        <div class="form-error">{{ message_form.non_field_errors }}</div>
+    {% endif %}
+    {% if message_form.body.errors %}
+        <div class="form-error">{{ message_form.body.errors }}</div>
+    {% endif %}
+    <button type="submit" class="message-send" aria-label="Send"><span class="send-label">Send</span><svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 19 9-19 9 4-9-4-9Zm4 9h15"/></svg></button>
+</form>
+
+<script>
+function applyMessageTemplate(select) {
+    const option = select.options[select.selectedIndex];
+    const body = option.dataset.templateBody || "";
+    const values = {
+        guest_name: "{{ template_values.guest_name|escapejs }}",
+        guest_first_name: "{{ template_values.guest_first_name|escapejs }}",
+        guide_first_name: "{{ template_values.guide_first_name|escapejs }}",
+        tour_name: "{{ template_values.tour_name|escapejs }}",
+        booking_time: "{{ template_values.booking_time|escapejs }}"
+    };
+    document.getElementById("id_body").value = body.replace(/\{([a-z_][a-z0-9_]*)\}/g, function (_, key) {
+        return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : "{" + key + "}";
+    });
+    document.getElementById("id_body").focus();
+}
+</script>

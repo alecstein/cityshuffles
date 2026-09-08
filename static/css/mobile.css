@@ -1,0 +1,123 @@
+/* Phone navigation and single-pane messaging; desktop styles stay unchanged. */
+.mobile-chat-back, .send-icon { display: none; }
+@media (max-width: 700px) {
+    html { -webkit-text-size-adjust: 100%; }
+    .app-shell { display: block; min-height: 100vh; }
+    .app-sidebar { min-height: 0; padding: .65rem .75rem 0; display: grid; grid-template-columns: 1fr auto; gap: .3rem .5rem; }
+    .app-sidebar .brand { padding: 0; font-size: 1.05rem; align-self: center; }
+    .app-sidebar .account-summary { display: flex; grid-column: 1 / -1; grid-row: 2; padding: .1rem 0 .35rem; margin: 0; font-size: .75rem; }
+    .app-sidebar .account-avatar { display: none; }
+    .app-sidebar .account-copy { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+    .app-sidebar .account-label, .app-sidebar .account-copy strong, .app-sidebar .account-role { font-size: .72rem; display: inline; }
+    .app-sidebar .logout-form { margin: 0; padding: 0; }
+    .app-sidebar .logout-form button { min-height: 32px; font-size: .8rem; }
+    .app-nav { grid-column: 1 / -1; display: flex; overflow-x: auto; margin: 0 -.75rem; padding: 0 .35rem; gap: 0; scrollbar-width: none; }
+    .app-nav::-webkit-scrollbar { display: none; }
+    .app-nav-link { flex: 0 0 auto; padding: .8rem .6rem; font-size: .8rem; min-height: 44px; border-radius: 6px 6px 0 0; }
+    .page { padding: 1rem .75rem; }
+    .page-header { margin-bottom: 1rem; flex-wrap: wrap; gap: .7rem; }
+    .page-header h1 { font-size: 1.65rem; }
+    input, select, textarea, .add-booking-form input, .add-booking-form select, .add-booking-form textarea { font-size: 16px; }
+    button, .button { min-height: 44px; }
+    .tour-summary { padding: .9rem; gap: .7rem; }
+    .tour-summary h2, .tour-summary h3 { font-size: 1rem; }
+    .tour-summary > div:first-child { flex-basis: 100%; }
+    .tour-summary-actions { width: 100%; justify-content: space-between; margin: 0; }
+    .tour-add-booking-trigger { margin-left: 0; font-size: .85rem; }
+    .my-tours-layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .my-selector { max-width: none; padding: .8rem; }
+    .calendar-day { padding: .7rem 0; min-height: 40px; }
+    .calendar-day.has-tours::after { bottom: 7px; }
+    .my-parties { padding: 0 .8rem; }
+    .my-guest-cell { gap: 0 .3rem; }
+    .guest-row-main .edit-guest-button { height:28px; min-height:28px; width:28px; }
+    .edit-guest-button, .feedback-button, .guest-chat-icon { width: 36px; height: 40px; min-height: 40px; flex-shrink: 0; }
+    .my-party-controls { gap: .6rem; }
+    .attendance-button { width: 40px; height: 40px; min-height: 40px; }
+    .guest-vendor { font-size: .72rem; }
+    .user-list-row { grid-template-columns: 1fr; gap: .3rem; }
+    .party-column { gap: .3rem; }
+    .party-stepper { gap: .1rem; }
+    .party-stepper button { width: 34px; height: 44px; min-height: 44px; }
+    .party-stepper strong { min-width: 20px; }
+    .my-party-controls .party-column { position:relative; isolation:isolate; background:transparent; padding:0 .35rem; }
+    .my-party-controls .party-column::before { content:""; position:absolute; inset:6px 0; z-index:-1; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; }
+    .my-party-controls .party-stepper button { background:transparent; font-size:1rem; }
+    .my-guest-cell .guest-chat-icon .chat-count-badge { display:none; }
+    .my-guest-cell .mobile-unread-chat { display:inline-flex; position:relative; }
+    .chat-unread-dot { position:absolute; width:7px; height:7px; right:-5px; top:-3px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 2px white; }
+    .group-message-panel { padding: .8rem; }
+    .group-quick-actions { gap: .5rem; }
+    .group-quick-actions button { font-size: .82rem; padding: .6rem .7rem; }
+    .group-recipient > strong { min-width: 0; flex-basis: 100%; }
+    .group-history-row summary span { display: inline-block; margin-left: .4rem; }
+    .booking-modal { width: calc(100vw - 1rem); max-height: calc(100vh - 1rem); max-height: calc(100dvh - 1rem); }
+    .booking-form-grid { grid-template-columns: minmax(0, 1fr); }
+    .booking-modal-header, .add-booking-form { padding: .8rem; }
+    .booking-modal-actions { bottom: -.8rem; }
+    .booking-date-tours { margin-left: 0; padding-left: 0; }
+    .booking-date-heading { padding: .6rem 0; }
+    .booking-date-heading h2 { font-size: 1rem; }
+    .guest-list { padding: 0 .5rem; }
+    .guest-row-main { min-width: 0; flex-wrap: wrap; }
+    .guest-name { overflow-wrap: anywhere; }
+    .guest-list li { flex-direction: row; flex-wrap: wrap; align-items: center; gap: .5rem; }
+    .guest-actions { margin-left: auto; }
+    .new-bookings-card { padding: 0; }
+    .new-bookings-heading { margin: 0; padding: .9rem; flex-wrap: wrap; gap: .7rem; }
+    .new-bookings-empty { padding: .9rem; margin: 0; }
+    .new-bookings-heading h2 { font-size: 1.1rem; }
+    .new-bookings-heading button { font-size: .8rem; }
+    .new-bookings-table-wrap { padding: 0 .9rem; overflow: visible; }
+    .new-bookings-table, .new-bookings-table tbody { display: block; width: 100%; }
+    .new-bookings-table thead { display: none; }
+    .new-bookings-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: .85rem 0; gap: .3rem .5rem; border-bottom: 1px solid var(--border); }
+    .new-bookings-table td { padding: 0 !important; border: 0; white-space: normal; overflow-wrap: anywhere; }
+    .new-bookings-table td:nth-child(1), .new-bookings-table td:nth-child(2) { grid-column: 1 / -1; }
+    .new-bookings-table td:nth-child(3), .new-bookings-table td:nth-child(4) { grid-column: 1; font-size: .8rem; color: var(--muted); }
+    .new-bookings-table td:last-child { grid-column: 2; grid-row: 3 / 5; align-self: center; }
+    .template-card, .integration-card { padding: 1rem; }
+    .template-card-heading { flex-wrap: wrap; gap: .6rem; }
+    .integration-heading h2 { font-size: 1.2rem; }
+    .integration-card { overflow-wrap: anywhere; }
+
+    .messaging-page .app-shell { height: 100vh; height: var(--visible-height, 100dvh); min-height: 0; display: flex; flex-direction: column; }
+    .messaging-page .app-sidebar { flex: 0 0 auto; }
+    .messaging-page.mobile-composing .app-sidebar { display: none; }
+    .messaging-page.mobile-chat-active .messenger-page-header { display: none; }
+    .messaging-page .app-main { display: flex; flex-direction: column; min-height: 0; }
+    .messaging-page .page { flex: 1; min-height: 0; padding: 0; display: flex; flex-direction: column; }
+    .messenger-page-header { padding: .6rem .75rem; margin: 0; flex: 0 0 auto; }
+    .messenger-page-header h1 { font-size: 1.2rem; }
+    .new-conversation > summary { font-size: .85rem; padding: .55rem .75rem; }
+    .messenger-shell { display: block; height: auto; min-height: 0; flex: 1; border-radius: 0; border: 0; position: relative; overflow: hidden; }
+    .conversation-sidebar { height: 100%; border: 0; }
+    .conversation-panel { display: none; height: 100%; min-height: 0; }
+    .messenger-shell.mobile-chat-open .conversation-sidebar { display: none; }
+    .messenger-shell.mobile-chat-open .conversation-panel { display: grid; grid-template-rows: auto 48px minmax(0, 1fr) auto; }
+    .conversation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; padding: .9rem 1rem; min-height: 76px; }
+    .conversation-topline strong { font-size: 1rem; }
+    .conversation-topline small, .conversation-preview { display: block; }
+    .conversation-trailing .unread-badge { display: grid; place-items: center; }
+    .conversation-preview { font-size: .85rem; }
+    .sidebar-heading { padding: .6rem .75rem; }
+    .conversation-search input { font-size: 16px; min-height: 44px; border-radius: 22px; }
+    .conversation-header { display: flex; align-items: center; gap: .5rem; padding: .6rem .75rem; }
+    .conversation-header > div { min-width: 0; flex: 1; }
+    .mobile-chat-back { display: grid; place-items: center; width: 36px; height: 44px; flex-shrink: 0; text-decoration: none; font-size: 2rem; }
+    .contact-heading { min-width: 0; }
+    .conversation-header h2 { font-size: 1rem; overflow-wrap: anywhere; }
+    .conversation-meta { font-size: .72rem; overflow-wrap: anywhere; }
+    .channel-tab { padding: .3rem; font-size: .78rem; gap: .25rem; }
+    .channel-tab small { font-size: .6rem; }
+    .message-list { padding: .75rem; background: #f0f3ef; overscroll-behavior: contain; }
+    .message-bubble { max-width: 88%; font-size: .95rem; }
+    .composer { padding: .5rem .65rem max(.5rem, env(safe-area-inset-bottom)); gap: .4rem; align-items: end; grid-template-columns: minmax(0, 1fr) 44px; background: #f0f3ef; }
+    .composer .template-picker { grid-column: 1 / -1; font-size: .75rem; min-width: 0; }
+    .composer .template-picker select { min-width: 0; max-width: 100%; font-size: 16px; height: 34px; }
+    .composer textarea { min-height: 44px; height: 44px; max-height: 112px; border-radius: 22px; resize: none; font-size: 16px; padding: .65rem .9rem; overflow-y: auto; }
+    .composer .message-send { height: 44px; width: 44px; min-height: 44px; border-radius: 50%; padding: 11px; }
+    .send-label { display: none; }
+    .send-icon { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+    .new-conversation-form, .contact-edit-form { position: fixed; z-index: 20; inset: 5vh .5rem auto; width: auto; max-height: 85vh; overflow-y: auto; }
+}

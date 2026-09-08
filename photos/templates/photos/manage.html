@@ -1,0 +1,21 @@
+{% load static %}
+<section class="photo-gallery" aria-labelledby="tour-photos-title">
+    <header class="photo-section-header"><div class="photo-heading"><h2 id="tour-photos-title">Photo Gallery</h2>
+    <span data-photo-preview {% if not photos_ready %}hidden{% endif %}><a class="photo-preview-link" {% if photo_album %}href="{% url 'photos:album' photo_album.token %}"{% endif %} target="_blank" rel="noopener" title="Preview guest gallery" aria-label="Preview guest gallery (opens in a new tab)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></a></span>
+    </div>
+    </header>
+    <div class="tour-photos" data-photo-upload="{% url 'photos:upload' selected.pk %}">
+    <form hidden data-photo-csrf>{% csrf_token %}</form>
+    <div data-photo-progress role="status" aria-live="polite"></div>
+    <div class="photo-grid" data-photo-grid>
+    <label class="photo-upload-label photo-add-tile" aria-label="Add photos"><span aria-hidden="true">+</span><input type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" data-photo-files></label>
+    {% for photo in photo_album.photos.all %}
+        <figure><a href="{% url 'photos:asset' photo_album.token photo.pk 'display' %}" target="_blank" rel="noopener"><img src="{% url 'photos:asset' photo_album.token photo.pk 'thumbnail' %}" loading="lazy" alt="{{ photo.filename }}"></a>
+        <figcaption><span>{{ photo.filename }}</span><small>{{ photo.width }} × {{ photo.height }}</small></figcaption>
+            <button type="button" class="photo-remove" aria-label="Delete {{ photo.filename }}" data-photo-remove="{% url 'photos:remove' photo.pk %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button></figure>
+    {% endfor %}
+    </div>
+    </div>
+</section>
+<link rel="stylesheet" href="{% static 'css/photos.css' %}?v=7">
+<script src="{% static 'js/photos.js' %}?v=5" defer></script>

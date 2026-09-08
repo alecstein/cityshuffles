@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} · CityShuffles{% endblock %}
+{% block content %}
+<section class="page-header"><h1>{{ page_title }}</h1></section>
+<div class="my-tours-layout">
+    <aside class="my-selector">
+        <nav class="calendar-heading" aria-label="Calendar month">
+            <a href="?date={{ previous|date:'Y-m-d' }}" aria-label="Previous month">‹</a>
+            <strong>{{ day|date:"F Y" }}</strong>
+            <a href="?date={{ next|date:'Y-m-d' }}" aria-label="Next month">›</a>
+        </nav>
+        <table class="mini-calendar" aria-label="Choose a tour date">
+            <thead><tr><th scope="col">Mo</th><th scope="col">Tu</th><th scope="col">We</th><th scope="col">Th</th><th scope="col">Fr</th><th scope="col">Sa</th><th scope="col">Su</th></tr></thead>
+            <tbody>{% for week in weeks %}<tr>{% for cell in week %}<td>
+                <a href="?date={{ cell.date|date:'Y-m-d' }}" class="calendar-day {% if cell.selected %}selected{% endif %} {% if not cell.in_month %}outside{% endif %} {% if cell.has_tours %}has-tours{% endif %}"
+                   aria-label="{{ cell.date|date:'F j, Y' }}{% if cell.has_tours %}, tours{% endif %}" {% if cell.today %}aria-current="date"{% endif %}>{{ cell.date.day }}</a>
+            </td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+        <div class="calendar-key"><span>• {% if all_tours %}Scheduled tours{% else %}Assigned tours{% endif %}</span><a href="?date={{ today|date:'Y-m-d' }}">Today</a></div>
+        <h2 class="my-date">{{ day|date:"D, M j" }}</h2>
+        <nav class="my-tour-options" aria-label="Tours on this date">
+        {% for tour in tours %}
+            <a href="?date={{ day|date:'Y-m-d' }}&tour={{ tour.pk }}" {% if selected.pk == tour.pk %}aria-current="true"{% endif %}>
+                <small>{{ tour.start_time|date:"g:i A" }}</small><strong>{{ tour.name }}</strong>
+            </a>
+        {% empty %}<p class="muted">No {% if not all_tours %}assigned {% endif %}tours on this date.</p>{% endfor %}
+        </nav>
+    </aside>
+    <div class="my-tour-content">
+        <section class="my-tour-detail">
+        {% if selected %}
+            {% url 'mytours:add_booking' selected.pk as add_booking_url %}
+            <article class="tour-card">
+                <header class="tour-summary">
+                    <div><h2>{{ selected.name }}</h2><p class="tour-time">{{ selected.start_time|date:"l, M j · g:i A" }}</p>{% if all_tours %}<p class="tour-time">Guide: {% if selected.responsible %}{{ selected.responsible.get_full_name|default:selected.responsible.username }}{% else %}Unassigned{% endif %}</p>{% endif %}</div>
+                    <div class="tour-summary-actions">
+                        {% include "mytours/partials/people_total.html" with tour=selected %}
+                    </div>
+                </header>
+                {% include "mytours/parties.html" %}
+                <div class="tour-add-booking-footer">
+                    <button
+                        type="button"
+                        class="tour-add-booking-trigger tour-add-booking-tab"
+                        data-action="{{ add_booking_url }}"
+                        data-mode="add"
+                        data-booking="{{ selected.modal_data }}"
+                        onclick="event.stopPropagation(); openBookingModal(this)"
+                    ><span aria-hidden="true">＋</span> Add booking</button>
+                </div>
+            </article>
+            {% include "mytours/partials/add_booking_modal.html" with action_url=add_booking_url add_form=add_booking_form modal_tour=selected modal_open=add_booking_form.errors %}
+        {% else %}<div class="empty-card"><h2>No tour selected</h2><p class="muted">Choose a marked date and a tour to view guests.</p></div>{% endif %}
+        </section>
+        {% if selected %}
+            {% include "mytours/partials/group_panel.html" %}
+            {% include "photos/manage.html" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

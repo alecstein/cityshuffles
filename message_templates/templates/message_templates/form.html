@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ heading }} · CityShuffles{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div><h1>{{ heading }}</h1></div>
+</section>
+
+<form method="post" class="template-form">
+    {% csrf_token %}
+    {% include "message_templates/fields.html" %}
+    <div class="template-form-actions">
+        <button type="submit">Save template</button>
+        <a class="button button-secondary" href="{% url 'message_templates:index' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

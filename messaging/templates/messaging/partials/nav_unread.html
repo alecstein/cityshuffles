@@ -1,0 +1,1 @@
+<span id="nav-unread" hx-get="{% url 'messaging:unread_badge' %}" hx-trigger="every 8s, notification-refresh" hx-swap="outerHTML" aria-live="polite" aria-atomic="true">{% if nav_unread_count %}<span class="nav-unread-badge" aria-label="{{ nav_unread_count }} unread messages">{{ nav_unread_count }}</span>{% endif %}</span>

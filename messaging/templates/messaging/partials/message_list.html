@@ -1,0 +1,25 @@
+{% for message in selected.messages.all %}
+<div class="message-row {% if message.direction == 'out' %}message-row-out{% else %}message-row-in{% endif %}">
+    <div class="message-bubble">
+        <div class="message-body">{{ message.body|linebreaksbr }}</div>
+        <div class="message-meta">
+            {{ message.created_at|date:"M j, g:i A" }}
+            {% if message.direction == 'out' %}
+                · {{ message.get_status_display }}
+            {% endif %}
+        </div>
+
+        {% if message.error_message %}
+            <div class="message-error">{{ message.error_message }}</div>
+        {% endif %}
+        {% if message.direction == 'out' and message.sender_name %}
+            <div class="message-meta message-sender">{{ message.sent_by.get_full_name|default:message.sender_name }}</div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="conversation-empty compact">
+    <p>No messages in this conversation yet.</p>
+</div>
+{% endfor %}
+{% if tabs_oob %}{% include "messaging/partials/channel_tabs.html" %}{% endif %}

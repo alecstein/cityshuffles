@@ -1,0 +1,52 @@
+<article class="my-party {% if guest.attendance == 'canceled' %}booking-canceled{% endif %}" id="party-{{ guest.pk }}">
+    <div class="my-guest-cell">
+        {% url 'mytours:guest_update' guest.pk as attendance_action_url %}
+        {% include "bookings/partials/guest_row_main.html" with attendance_action_url=attendance_action_url hx_target="#my-parties" hx_swap="outerHTML" hx_sync="#my-parties:queue all" %}
+    <div class="my-party-controls">
+        <div class="party-column">
+            <span class="party-count-label">Adults</span>
+            <form method="post" action="{% url 'mytours:guest_party_update' guest.pk %}" hx-post="{% url 'mytours:guest_party_update' guest.pk %}" hx-target="#my-parties" hx-swap="outerHTML" hx-sync="#my-parties:queue all" class="party-stepper">
+                {% csrf_token %}
+                <button type="submit" name="adults_delta" value="-1" aria-label="Remove an adult">−</button>
+                <strong title="Originally booked: {{ guest.original_adults }} adults">{{ guest.adults }}</strong>
+                <button type="submit" name="adults_delta" value="1" aria-label="Add an adult">+</button>
+            </form>
+        </div>
+        <div class="party-column">
+            <span class="party-count-label">Kids</span>
+            <form method="post" action="{% url 'mytours:guest_party_update' guest.pk %}" hx-post="{% url 'mytours:guest_party_update' guest.pk %}" hx-target="#my-parties" hx-swap="outerHTML" hx-sync="#my-parties:queue all" class="party-stepper">
+                {% csrf_token %}
+                <button type="submit" name="children_delta" value="-1" aria-label="Remove a child">−</button>
+                <strong title="Originally booked: {{ guest.original_children }} kids">{{ guest.children }}</strong>
+                <button type="submit" name="children_delta" value="1" aria-label="Add a child">+</button>
+            </form>
+        </div>
+    </div>
+        <form method="post" action="{% url 'mytours:guest_feedback' guest.pk %}" hx-post="{% url 'mytours:guest_feedback' guest.pk %}" hx-target="#my-parties" hx-swap="outerHTML" hx-sync="#my-parties:queue all" class="feedback-form">
+            {% csrf_token %}
+            <button type="submit" class="feedback-button feedback-{{ guest.feedback }}" aria-label="Guest feedback: {% if guest.feedback == 'up' %}thumbs up{% elif guest.feedback == 'down' %}thumbs down{% else %}none{% endif %}" title="Cycle guest feedback">
+                {% if guest.feedback == "down" %}
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V4H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3Zm0-10h8.2a2 2 0 0 1 1.9 1.4l2 6A2 2 0 0 1 17.2 14H14l.7 3.4A2.9 2.9 0 0 1 11.9 21L7 14V4Z"/></svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v10H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h3Zm0 10h8.2a2 2 0 0 0 1.9-1.4l2-6A2 2 0 0 0 17.2 10H14l.7-3.4A2.9 2.9 0 0 0 11.9 3L7 10v10Z"/></svg>
+                {% endif %}
+            </button>
+        </form>
+        <div class="guest-contact-action">
+        {% if guest.chat_started and guest.conversation %}
+        <a class="guest-chat-icon chat-started" href="{% url 'messaging:inbox' %}?conversation={{ guest.conversation.pk }}" aria-label="View chat with {{ guest.full_name }}{% if guest.unread_count %}, {{ guest.unread_count }} unread messages{% endif %}" title="View chat">
+            {% if guest.unread_count %}<span class="chat-count-badge">{{ guest.unread_count }}</span><span class="mobile-unread-chat" aria-hidden="true">{% include "mytours/partials/chat_icon.html" %}<span class="chat-unread-dot"></span></span>{% else %}{% include "mytours/partials/chat_icon.html" %}{% endif %}
+        </a>
+        {% elif guest.contact.phone_number or guest.contact.email %}
+        <form method="post" action="{% url 'bookings:start_guest_conversation' guest.pk %}" class="chat-action-form">
+            {% csrf_token %}
+            <button type="submit" class="guest-chat-icon" aria-label="Start chat with {{ guest.full_name }}" title="Start chat and send welcome message">{% include "mytours/partials/chat_icon.html" %}</button>
+        </form>
+        {% else %}
+        <button type="button" class="guest-chat-icon" disabled aria-label="Start chat with {{ guest.full_name }} (no contact information)" title="Add contact information to start chat">{% include "mytours/partials/chat_icon.html" %}</button>
+        {% endif %}
+        </div>
+        {{ form.errors }}
+    </div>
+    {% if guest.special_requests %}<p class="guest-special-requests"><strong>Special requests:</strong> {{ guest.special_requests }}</p>{% endif %}
+</article>

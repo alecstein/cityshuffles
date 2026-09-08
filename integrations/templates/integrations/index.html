@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Integrations · CityShuffles{% endblock %}
+{% block content %}
+<section class="page-header"><h1>Integrations</h1></section>
+
+<article class="integration-card">
+  <div class="integration-heading"><h2>GuruWalk</h2>
+    {% if connection.auth_status == 'failed' %}<span class="integration-error" data-auth-status>✕ Authentication rejected</span>
+    {% elif connection.auth_fresh %}<span class="integration-ok" data-auth-status>✓ Authentication working</span>
+    {% elif connection.auth_current %}<span class="muted" data-auth-status>Authentication previously verified</span>
+    {% else %}<span class="muted" data-auth-status>Authentication not verified</span>{% endif %}
+  </div>
+  <dl class="integration-facts">
+    <div><dt>Last successful sync</dt><dd data-last-sync>{{ connection.last_sync_at|date:"M j, g:i A"|default:"Not yet" }}</dd></div>
+  </dl>
+  {% if connection.worker_online %}<p class="muted integration-worker-status">Automatic sync worker running.</p>{% else %}<p class="integration-error integration-worker-status">Automatic sync worker not running.</p>{% endif %}
+  <p class="muted">Authentication is refreshed periodically and automatically by the worker. Bookings can be imported manually at any time.</p>
+  <div class="integration-actions" data-sync-controls data-sync-running="{{ sync_running|yesno:'true,false' }}"
+       data-sync-status-url="{% url 'integrations:sync_status' %}"
+       data-sync-start-url="{% url 'integrations:sync' %}">
+    {% if connection.sync_status == 'running' %}
+      <form class="integration-sync-form" method="post" action="{% url 'integrations:cancel' %}">
+        {% csrf_token %}
+        <input type="hidden" name="run_id" value="{{ connection.sync_run_id }}">
+        <button class="integration-cancel-button" type="submit" title="Cancel sync" aria-label="Cancel sync">Cancel ×</button>
+        <span class="integration-sync-spinner" role="status" aria-label="Sync in progress"></span>
+      </form>
+    {% else %}
+      <form class="integration-sync-form" method="post" action="{% url 'integrations:sync' %}">
+        {% csrf_token %}
+        <button type="submit">Sync all bookings</button>
+        <span class="integration-sync-spinner" hidden role="status" aria-label="Sync in progress"></span>
+      </form>
+    {% endif %}
+  </div>
+  <div class="integration-sync-progress" data-sync-progress {% if connection.sync_status != 'running' %}hidden{% endif %}>
+    <div class="integration-sync-progress-line">
+      <strong data-sync-progress-message>{% if sync_cancel_requested %}Cancellation requested; finishing the current request…{% else %}{{ sync_progress.message|default:"Starting GuruWalk sync…" }}{% endif %}</strong>
+      <span class="integration-sync-progress-count" data-sync-progress-count>{% if sync_progress.total %}{{ sync_progress.current|default:0 }} / {{ sync_progress.total }}{% endif %}</span>
+    </div>
+    <progress data-sync-progress-bar {% if not sync_progress.total %}hidden{% endif %} max="{{ sync_progress.total|default:1 }}" value="{{ sync_progress.current|default:0 }}"></progress>
+  </div>
+  {% if connection.sync_status == 'failed' and connection.detail %}<p class="integration-sync-result integration-error" data-sync-result>Sync failed; no booking changes were committed. {{ connection.detail }}</p>{% elif connection.sync_status == 'cancelled' %}<p class="integration-sync-result muted" data-sync-result>Sync canceled. Existing data was kept.</p>{% elif connection.sync_status == 'ok' and connection.last_sync_at %}<p class="integration-sync-result integration-ok" data-sync-result>Sync complete. Updated {{ connection.imported_count }} booking{{ connection.imported_count|pluralize }}.</p>{% else %}<p class="integration-sync-result" data-sync-result hidden></p>{% endif %}
+  <details {% if form.errors or not connection.enabled %}open{% endif %} class="integration-connect">
+    <summary>Connect or replace credential</summary>
+    <form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button>Save and verify</button></form>
+  </details>
+  <details class="integration-connect"><summary>How to get your bearer token</summary>
+    <ol>
+      <li>Open <a href="https://providers.guruwalk.com/" target="_blank" rel="noopener noreferrer">GuruWalk</a> and sign in to your company account normally.</li>
+      <li>In Firefox or Zen, open Developer Tools, then <strong>Storage → Cookies</strong>. In Chrome, use <strong>Application → Cookies</strong>.</li>
+      <li>Select the GuruWalk site and find the GuruWalk authentication cookie. Its value is your bearer token; copy only that value.</li>
+      <li>Paste it into the private field above and click <strong>Save and verify</strong>. Clear the clipboard afterward.</li>
+    </ol>
+    <p class="muted">This is the current manual fallback. Ask an administrator if you cannot find the cookie. One-click reconnect is not available yet; automatic token renewal has not been verified.</p>
+  </details>
+  <p class="muted">GuruWalk is read-only: syncs do not change anything there. Imported guests do not receive welcome messages automatically. Local attendance and contact edits are preserved. Guide assignments remain manual.</p>
+</article>
+
+<article class="integration-card integration-gmail-card">
+  <div class="integration-heading"><h2>Gmail</h2>
+    {% if gmail_connection.auth_current %}<span class="integration-ok">✓ Authentication working</span>
+    {% elif gmail_connection.auth_status == 'failed' %}<span class="integration-error">✕ Authentication not working</span>
+    {% else %}<span class="integration-muted">Not connected</span>{% endif %}
+  </div>
+  <dl class="integration-facts">
+    <div><dt>Last successful sync</dt><dd>{{ gmail_connection.last_sync_at|date:"M j, g:i A"|default:"Not yet" }}</dd></div>
+    {% if gmail_connection.account_id %}<div><dt>Account</dt><dd>{{ gmail_connection.account_id }}</dd></div>{% endif %}
+  </dl>
+  <p class="muted">Receive replies in Messages and send email from the connected inbox.</p>
+  {% if gmail_oauth_configured %}
+    <a class="button" href="{% url 'integrations:connect_gmail' %}">{% if gmail_connection.account_id %}Reconnect Gmail{% else %}Connect Gmail{% endif %}</a>
+    {% if gmail_connection.account_id %}
+      <form class="integration-disconnect-form" method="post" action="{% url 'integrations:disconnect_gmail' %}">{% csrf_token %}<button type="submit">Disconnect</button></form>
+    {% endif %}
+  {% else %}
+    <p class="muted">Add the Google OAuth client ID and secret to the server configuration to connect Gmail.</p>
+  {% endif %}
+  <details class="integration-connect">
+    <summary>About Gmail access</summary>
+    <p class="muted">Google asks you to authorize CityShuffles once. The app keeps the refresh token securely on the server, refreshes access automatically, imports unread replies, and sends email through the connected account.</p>
+  </details>
+</article>
+
+{% if demo_connection %}
+<article class="integration-card integration-demo-card">
+  <div class="integration-heading"><h2>{{ demo_connection.display_name }}</h2>
+    {% if demo_connection.auth_current %}<span class="integration-ok">✓ Authentication working</span>
+    {% else %}<span class="integration-error">✕ Authentication not working</span>{% endif %}
+  </div>
+  <dl class="integration-facts">
+    <div><dt>Last successful sync</dt><dd>{{ demo_connection.last_sync_at|date:"M j, g:i A"|default:"Not yet" }}</dd></div>
+  </dl>
+  <p class="muted">Demo data for exploring the calendar, bookings, and messages. This vendor is not connected to an outside service.</p>
+</article>
+{% endif %}
+<script>
+  (() => {
+    const bindForm = () => {
+      const form = document.querySelector('.integration-sync-form');
+      if (!form || form.dataset.bound === 'true') return;
+      form.dataset.bound = 'true';
+      const button = form.querySelector('button');
+      const spinner = form.querySelector('.integration-sync-spinner');
+      form.addEventListener('submit', () => {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        if (spinner) spinner.hidden = false;
+      }, { once: true });
+    };
+    bindForm();
+
+    const controls = document.querySelector('[data-sync-controls]');
+    if (controls?.dataset.syncRunning !== 'true') return;
+    const endpoint = controls.dataset.syncStatusUrl;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      const controller = new AbortController();
+      const requestTimer = window.setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error('status request failed');
+        const state = await response.json();
+        const currentControls = document.querySelector('[data-sync-controls]');
+        const progress = document.querySelector('[data-sync-progress]');
+        const message = progress?.querySelector('[data-sync-progress-message]');
+        const count = progress?.querySelector('[data-sync-progress-count]');
+        const bar = progress?.querySelector('[data-sync-progress-bar]');
+        const result = document.querySelector('[data-sync-result]');
+        const auth = document.querySelector('[data-auth-status]');
+        if (state.status === 'running' && result) result.hidden = true;
+        if (auth) {
+          auth.textContent = state.auth_status === 'failed' ? '✕ Authentication rejected' :
+            (state.auth_fresh ? '✓ Authentication working' :
+              (state.auth_current ? 'Authentication previously verified' : 'Authentication not verified'));
+          auth.className = state.auth_status === 'failed' ? 'integration-error' :
+            (state.auth_fresh ? 'integration-ok' : 'muted');
+          auth.dataset.authStatus = '';
+        }
+        if (message) message.textContent = state.cancel_requested
+          ? 'Cancellation requested; finishing the current request…'
+          : (state.message || 'GuruWalk sync in progress…');
+        if (count) count.textContent = state.total ? `${state.current || 0} / ${state.total}` : '';
+        if (bar) {
+          bar.hidden = !state.total;
+          if (state.total) { bar.max = state.total; bar.value = state.current || 0; }
+        }
+        if (state.status !== 'running' || !currentControls) {
+          if (currentControls) {
+            const form = currentControls.querySelector('form');
+            const button = form?.querySelector('button');
+            const spinner = form?.querySelector('.integration-sync-spinner');
+            if (form && button) {
+              form.action = currentControls.dataset.syncStartUrl;
+              button.className = '';
+              button.textContent = 'Sync all bookings';
+              button.disabled = false;
+              button.removeAttribute('aria-busy');
+              button.removeAttribute('title');
+              button.removeAttribute('aria-label');
+              form.querySelector('input[name="run_id"]')?.remove();
+              if (spinner) spinner.hidden = true;
+              form.dataset.bound = 'false';
+              bindForm();
+            }
+            currentControls.dataset.syncRunning = 'false';
+          }
+          if (progress) progress.hidden = true;
+          if (result) {
+            result.textContent = state.status === 'failed' ? `Sync failed; no booking changes were committed. ${state.detail || state.message || ''}` :
+              (state.status === 'cancelled' ? 'Sync canceled. Existing data was kept.' :
+                (state.message || 'Sync complete.'));
+            result.className = state.status === 'failed' ? 'integration-sync-result integration-error' :
+              (state.status === 'ok' ? 'integration-sync-result integration-ok' : 'integration-sync-result muted');
+            result.hidden = false;
+          }
+          const lastSync = document.querySelector('[data-last-sync]');
+          if (lastSync && state.last_sync_at) {
+            lastSync.textContent = new Date(state.last_sync_at).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+            });
+          }
+          return;
+        }
+      } catch (error) {
+        const result = document.querySelector('[data-sync-result]');
+        if (result) {
+          result.textContent = 'Progress is temporarily unavailable. The sync may still be running; retrying…';
+          result.className = 'integration-sync-result muted';
+          result.hidden = false;
+        }
+      } finally {
+        window.clearTimeout(requestTimer);
+        inFlight = false;
+      }
+      window.setTimeout(poll, 2000);
+    };
+    poll();
+  })();
+</script>
+{% endblock %}

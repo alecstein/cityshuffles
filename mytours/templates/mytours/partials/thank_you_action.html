@@ -1,0 +1,39 @@
+<div id="thank-you-action" class="thank-you-action"
+     {% if selected and thank_you_action %}hx-get="{% url 'mytours:thank_you_status' selected.pk %}" hx-trigger="every 8s" hx-swap="outerHTML" hx-include="#thank-you-expanded"{% endif %}>
+    {% if selected %}
+        <form method="post" action="{% url 'mytours:send_thank_you' selected.pk %}"
+              hx-post="{% url 'mytours:send_thank_you' selected.pk %}" hx-target="#thank-you-action" hx-swap="outerHTML" hx-disabled-elt="find button, find select"
+              class="thank-you-form">
+            {% csrf_token %}
+            <label>Template
+                <select name="template" {% if thank_you_action %}disabled{% endif %}>
+                    {% if thank_you_action %}<option>{{ thank_you_action.template_name }}</option>
+                    {% else %}<option value="" title="{{ default_thank_you }}">Tour thank you</option>
+                    {% for template in thank_you_templates %}<option value="{{ template.pk }}" title="{{ template.body }}">{{ template.name }}</option>{% endfor %}{% endif %}
+                </select>
+            </label>
+            <button type="submit" {% if thank_you_action %}disabled{% endif %}>Send thank you message</button>
+        </form>
+        {% if thank_you_error %}<p role="alert" class="form-error">{{ thank_you_error }}</p>{% endif %}
+        {% if thank_you_action %}
+        <input type="hidden" id="thank-you-expanded" name="expanded" value="{% if delivery_expanded %}1{% else %}0{% endif %}">
+        <details class="thank-you-deliveries" id="thank-you-deliveries" {% if delivery_expanded %}open{% endif %}
+                 ontoggle="document.getElementById('thank-you-expanded').value = this.open ? '1' : '0'">
+            <summary>Delivery details{% if thank_you_pending %} · In progress{% endif %}</summary>
+            <ul>
+                {% for delivery in thank_you_deliveries %}
+                <li>
+                    <strong>{{ delivery.guest_name }}</strong>
+                    <span class="delivery-status {% if delivery.can_retry %}delivery-failed{% endif %}" title="{{ delivery.message.error_message|default:delivery.detail }}">{{ delivery.status_label }}{% if delivery.message %} · {{ delivery.message.conversation.get_channel_display }}{% endif %}</span>
+                    {% if delivery.can_retry %}
+                    <form method="post" action="{% url 'mytours:retry_thank_you' delivery.pk %}" hx-post="{% url 'mytours:retry_thank_you' delivery.pk %}" hx-target="#thank-you-action" hx-swap="outerHTML" hx-disabled-elt="find button">
+                        {% csrf_token %}<button type="submit" class="button-secondary">Retry</button>
+                    </form>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% else %}<p class="thank-you-hint">Sends once per guest on this tour, excluding canceled bookings.</p>{% endif %}
+    {% else %}<button disabled>Send thank you message</button>{% endif %}
+</div>

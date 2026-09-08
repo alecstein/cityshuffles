@@ -1,0 +1,13 @@
+{% load static %}
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>{{ album.tour.name }} · CityShuffles photos</title><link rel="stylesheet" href="{% static 'css/photos.css' %}"></head>
+<body class="guest-album"><main>
+    <header class="album-hero"><span class="album-brand">CityShuffles</span><h1>Thanks for joining us!</h1><p>Your photos from {{ album.tour.name }}</p><p class="album-date">{{ album.tour.start_time|date:"l, F j, Y · g:i A" }}</p>
+    <nav aria-label="Find us online">{% for link in gallery_links %}<a href="{{ link.url }}" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>{% empty %}<span>Website · coming soon</span><span>Instagram · coming soon</span><span>YouTube · coming soon</span>{% endfor %}</nav></header>
+    <div class="photo-grid album-grid">{% for photo in photos %}<figure>
+        <a href="{% url 'photos:asset' album.token photo.pk 'display' %}" data-full-photo><img src="{% url 'photos:asset' album.token photo.pk 'thumbnail' %}" alt="Tour photo {{ forloop.counter }}" loading="lazy" width="{{ photo.width }}" height="{{ photo.height }}"></a>
+        <figcaption><a href="{% url 'photos:asset' album.token photo.pk 'original' %}" download>Download original ↓</a></figcaption>
+    </figure>{% empty %}<p>Photos will appear here once your guide uploads them.</p>{% endfor %}</div>
+    <footer>Made with care by CityShuffles. Enjoy the memories.</footer>
+</main><dialog id="photo-viewer"><button type="button" aria-label="Close photo" onclick="this.closest('dialog').close()">×</button><img alt="Full-resolution tour photo"></dialog>
+<script>document.querySelectorAll('[data-full-photo]').forEach(link => link.addEventListener('click', event => { const viewer = document.getElementById('photo-viewer'); if (!viewer.showModal) return; event.preventDefault(); viewer.querySelector('img').src = link.href; viewer.showModal(); }));</script>
+</body></html>

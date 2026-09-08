@@ -1,0 +1,30 @@
+    <nav id="channel-tabs" {% if tabs_oob %}hx-swap-oob="outerHTML"{% endif %} class="conversation-channel-tabs" aria-label="Messaging channels">
+        {% for tab in channel_tabs %}
+            {% if tab.available and tab.conversation %}
+            <a
+                class="channel-tab {% if tab.is_active %}is-active{% endif %}"
+                href="{% url 'messaging:inbox' %}?conversation={{ tab.conversation.pk }}"
+                hx-get="{% url 'messaging:conversation' tab.conversation.pk %}"
+                hx-target="#conversation-panel"
+                hx-push-url="{% url 'messaging:inbox' %}?conversation={{ tab.conversation.pk }}"
+                role="tab"
+                {% if tab.is_active %}aria-selected="true"{% else %}aria-selected="false"{% endif %}
+            >
+                <span>{{ tab.label }}</span>
+                {% if tab.unread_count %}<span class="channel-unread">{{ tab.unread_count }}</span>{% endif %}
+            </a>
+            {% elif tab.available %}
+            <form method="post" action="{% url 'messaging:open_channel' selected.contact.pk tab.value %}" class="channel-tab-form">
+                {% csrf_token %}
+                <button type="submit" class="channel-tab channel-tab-button" role="tab" aria-selected="false">
+                    <span>{{ tab.label }}</span>
+                </button>
+            </form>
+            {% else %}
+            <span class="channel-tab channel-tab-disabled" aria-disabled="true" title="Add a {{ tab.label|lower }} contact method to enable this channel">
+                <span>{{ tab.label }}</span>
+                <svg class="channel-unavailable" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>
+            </span>
+            {% endif %}
+        {% endfor %}
+    </nav>

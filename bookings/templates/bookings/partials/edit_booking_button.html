@@ -1,0 +1,7 @@
+<button type="button" class="edit-guest-button" data-mode="edit"
+        data-action="{% url 'bookings:guest_update' guest.pk %}"
+        data-delete-action="{% if guest.is_manual %}{% url 'bookings:guest_delete' guest.pk %}{% endif %}"
+        data-booking="{{ guest.modal_data }}"
+        onclick="openBookingModal(this)" aria-label="Edit {{ guest.full_name }}" title="Edit booking">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m16.5 4.5 3 3M5 19l3.4-.7L19.5 7.2a2.1 2.1 0 0 0-3-3L5.4 15.3 5 19Z"></path></svg>
+</button>

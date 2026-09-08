@@ -1,0 +1,4 @@
+{% with count=tour.people_count %}<span id="tour-people-total" class="tour-guest-total" {% if update_total %}hx-swap-oob="outerHTML"{% endif %} aria-label="{{ count }} people" title="Adults and kids, excluding canceled bookings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5v1"/></svg>
+    <span class="tour-guest-total-number">{{ count }}</span>
+</span>{% endwith %}

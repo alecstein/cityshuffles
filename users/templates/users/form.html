@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} · CityShuffles{% endblock %}
+{% block content %}
+<section class="page-header"><h1>{{ heading }}</h1></section>
+{% if profile_page %}<p>{{ user.username }} · {% if user.is_staff or user.is_superuser %}Admin{% else %}Guide{% endif %}</p>{% endif %}
+<form method="post" class="user-form">{% csrf_token %}{{ form.as_p }}<button type="submit">Save</button> <a class="button button-secondary" href="{% if profile_page %}{% url 'bookings:index' %}{% else %}{% url 'users:index' %}{% endif %}">Cancel</a></form>
+{% if profile_page %}
+<section class="user-form" data-notification-settings style="margin-top:1.5rem">
+    <h2>Notifications</h2>
+    <p>Shared inbox: when anyone reads a message, it is marked read for everyone.</p>
+    <p>On iPhone, use iOS 16.4 or later and add this app to your Home Screen first.</p>
+    <p role="status" aria-live="polite">Checking notification support…</p>
+    <label><input type="checkbox" name="push-previews"> Show guest names and message previews in notifications</label>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem">
+        <button type="button" data-push-action="enable" disabled>Enable notifications</button>
+        <button type="button" data-push-action="test" class="button-secondary" disabled>Send test notification</button>
+        <button type="button" data-push-action="disable" class="button-secondary" disabled>Disable on this device</button>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

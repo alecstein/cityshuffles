@@ -1,0 +1,6 @@
+<li class="guest-row {% if guest.attendance == 'canceled' %}booking-canceled{% endif %}">
+    {% url 'bookings:guest_attendance_update' guest.pk as attendance_action_url %}
+    {% include "bookings/partials/guest_row_main.html" with attendance_action_url=attendance_action_url hx_target="closest .guest-row" hx_swap="outerHTML" %}
+    {% include "bookings/partials/chat_button.html" %}
+    {% if guest.special_requests %}<p class="guest-special-requests">{{ guest.special_requests }}</p>{% endif %}
+</li>

@@ -1,0 +1,13 @@
+{% load static %}
+<dialog id="booking-modal" class="booking-modal" aria-labelledby="booking-modal-title"
+        data-open-on-load="{% if modal_open %}true{% else %}false{% endif %}"
+        data-mode="{{ modal_mode|default:'add' }}"
+        data-initial="{% if modal_data %}{{ modal_data }}{% else %}{{ modal_tour.modal_data }}{% endif %}">
+    <div class="booking-modal-header">
+        <h2 id="booking-modal-title" tabindex="-1" autofocus>{% if modal_mode == "edit" %}Edit booking{% else %}Add booking{% endif %}</h2>
+        <button type="button" class="booking-modal-close" data-close-booking-modal aria-label="Close booking form">×</button>
+    </div>
+    {% include "mytours/partials/add_booking_form.html" %}
+    <form id="booking-delete-form" method="post" action="{{ delete_action_url }}" hidden>{% csrf_token %}</form>
+</dialog>
+<script src="{% static 'js/booking-modal.js' %}?v=2"></script>
