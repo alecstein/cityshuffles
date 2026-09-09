@@ -74,13 +74,7 @@
     .new-bookings-table td:nth-child(1), .new-bookings-table td:nth-child(2) { grid-column: 1 / -1; }
     .new-bookings-table td:nth-child(2) { font-size: .8rem; }
     .new-bookings-table td:last-child { grid-column: 1; grid-row: auto; align-self: stretch; }
-    .new-booking-actions { display: flex; width: 100%; align-items: center; justify-content: flex-end; gap: .45rem; padding-top: 0.5rem;}
-    .new-booking-actions .new-booking-ignore-form { order: 1; }
-    .new-booking-actions .new-booking-welcome-form,
-    .new-booking-actions .new-booking-welcome-action { order: 2; }
-    .new-booking-actions .new-booking-chat-form,
-    .new-booking-actions .new-booking-chat-action { order: 3; }
-    .new-booking-actions .new-booking-ignore-form { margin-right: auto !important; }
+    .new-booking-actions { padding-top: .5rem; }
     .my-guest-cell .guest-chat-actions { justify-content: flex-end; gap: .6rem; }
     .template-card, .integration-card { padding: 1rem; }
     .template-card-heading { flex-wrap: wrap; gap: .6rem; }

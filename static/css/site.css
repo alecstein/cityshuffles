@@ -679,6 +679,16 @@ button:hover,
     opacity: .55;
 }
 
+.welcome-button.is-canceled,
+.welcome-button.is-canceled:hover {
+    border-color: #d7dcd8;
+    background: var(--surface);
+    color: var(--accent);
+    opacity: .4;
+    cursor: not-allowed;
+    filter: none;
+}
+
 .jump-link-disabled,
 .jump-link-disabled:hover {
     border-color: #d7dcd8;
@@ -832,31 +842,27 @@ button:hover,
 }
 
 .new-booking-actions {
-    display: grid;
-    grid-template-columns: var(--compact-control-size) max-content;
-    grid-template-areas:
-        "chat welcome"
-        ". ignore";
+    display: flex;
+    width: 100%;
     align-items: center;
     justify-content: flex-end;
-    gap: .45rem .55rem;
+    gap: .55rem;
 }
 
 .new-booking-ignore-form {
-    grid-area: ignore;
-    justify-self: end;
-    margin: 0 !important;
+    order: 1;
+    margin: 0 auto 0 0 !important;
 }
 
 .new-booking-actions > .new-booking-chat-action,
 .new-booking-actions > .new-booking-chat-form,
 .new-booking-actions > a.new-booking-chat-action {
-    grid-area: chat;
+    order: 3;
 }
 
 .new-booking-actions > .new-booking-welcome-action,
 .new-booking-actions > .new-booking-welcome-form {
-    grid-area: welcome;
+    order: 2;
 }
 
 .jump-link-ignore,
@@ -1530,7 +1536,6 @@ button:hover,
 .booking-date-heading {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 1rem;
     margin: 0;
     padding: .15rem .2rem;
