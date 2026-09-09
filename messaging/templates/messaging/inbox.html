@@ -1,21 +1,14 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Messages · CityShuffles{% endblock %}
 {% block body_class %}messaging-page{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/guest-conversations.css' %}">
 <section class="page-header">
     <h1>Messages</h1>
-
-    <details class="new-conversation">
-        <summary class="button">New chat</summary>
-        <form method="post" action="{% url 'messaging:new_conversation' %}" class="new-conversation-form">
-            {% csrf_token %}
-            {{ new_conversation_form.as_p }}
-            <button type="submit">Create</button>
-        </form>
-    </details>
-    </section>
+</section>
 
 <div class="messenger-shell {% if request.GET.conversation %}mobile-chat-open{% endif %}">
     <aside class="conversation-sidebar">
@@ -54,11 +47,10 @@
             {% include "messaging/partials/conversation_panel.html" %}
         {% else %}
             <div class="conversation-empty">
-                <h2>No chats yet</h2>
-                <p>Create one above, or receive a message through the Twilio webhook.</p>
+                <h2>No conversation selected</h2>
             </div>
         {% endif %}
     </main>
 </div>
-{% load static %}<script src="{% static 'js/mobile-chat.js' %}"></script>
+<script src="{% static 'js/mobile-chat.js' %}"></script>
 {% endblock %}

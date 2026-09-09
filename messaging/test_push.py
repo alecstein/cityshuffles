@@ -3,8 +3,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from pywebpush import WebPushException
-from .models import Contact, Conversation, Message, PushDevice, PushDelivery
+from .models import Guest, Conversation, Message, PushDevice, PushDelivery
 from .push import deliver_pending, valid_endpoint
+from bookings.models import Booking, Tour
+from django.utils import timezone
 
 
 class PushTests(TestCase):
@@ -12,7 +14,9 @@ class PushTests(TestCase):
         self.user = get_user_model().objects.create_user(username="push-test")
         self.client.force_login(self.user)
         self.device = PushDevice.objects.create(user=self.user, session_key=self.client.session.session_key, endpoint="https://fcm.googleapis.com/fcm/send/test", keys={})
-        self.chat = Conversation.objects.create(contact=Contact.objects.create(name="Guest"), channel="sms")
+        self.chat = Conversation.objects.create(contact=Guest.objects.create(name="Guest"), channel="sms")
+        Booking.objects.create(contact=self.chat.contact, first_name="Guest", imported=True,
+                               booked_tour=Tour.objects.create(name="Tour", start_time=timezone.now()))
 
     def incoming(self):
         return Message.objects.create(conversation=self.chat, body="Private guest message", direction="in", is_read=False)

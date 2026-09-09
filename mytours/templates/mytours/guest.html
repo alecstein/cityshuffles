@@ -32,28 +32,11 @@
                 {% endif %}
             </button>
         </form>
-        <div class="guest-contact-action {% if not guest.chat_started %}guest-welcome-action{% endif %}">
-        {% if guest.chat_started and guest.conversation %}
-        {% include "bookings/partials/chat_bubble.html" with chat_conversation=guest.conversation chat_guest_name=guest.full_name chat_unread_count=guest.unread_count only %}
-        {% elif guest.chat_started %}
-        {% include "bookings/partials/chat_bubble.html" with chat_guest_name=guest.full_name chat_disabled=True chat_unavailable=True only %}
-        {% elif guest.contact.phone_number or guest.contact.email %}
-        <span class="guest-chat-actions">
-            <form method="post" action="{% url 'bookings:start_guest_conversation' guest.pk %}" class="chat-action-form">
-                {% csrf_token %}
-                <button type="submit" class="jump-link jump-link-start welcome-button{% if guest.attendance == 'canceled' %} is-canceled{% endif %}"{% if guest.attendance == 'canceled' %} disabled{% endif %} aria-label="Send welcome to {{ guest.full_name }}" title="{% if guest.attendance == 'canceled' %}Guest is canceled{% else %}Send welcome message{% endif %}">Greet</button>
-            </form>
-            <form method="post" action="{% url 'bookings:open_guest_conversation' guest.pk %}" class="chat-action-form">
-                {% csrf_token %}
-                {% include "bookings/partials/chat_bubble.html" with chat_guest_name=guest.full_name only %}
-            </form>
-        </span>
-        {% else %}
-        <span class="guest-chat-actions">
-            <button type="button" class="jump-link jump-link-disabled welcome-button{% if guest.attendance == 'canceled' %} is-canceled{% endif %}" disabled aria-label="Send welcome to {{ guest.full_name }} (no contact information)" title="{% if guest.attendance == 'canceled' %}Guest is canceled{% else %}Add contact information to send the welcome message{% endif %}">Greet</button>
-            {% include "bookings/partials/chat_bubble.html" with chat_guest_name=guest.full_name chat_disabled=True only %}
-        </span>
-        {% endif %}
+        <div class="guest-contact-action">
+            <span class="guest-booking-edit-action">
+                {% include "bookings/partials/edit_booking_button.html" with guest=guest %}
+            </span>
+            {% include "bookings/partials/chat_button.html" %}
         </div>
         {{ form.errors }}
     </div>

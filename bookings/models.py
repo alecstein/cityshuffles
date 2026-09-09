@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from messaging.models import Contact, Conversation, Message
+from messaging.models import Guest, Conversation, Message
 
 
 def departure_fingerprint(product_id, start_time):
@@ -81,8 +81,9 @@ class Tour(models.Model):
         return sum(g.adults + g.children for g in guests if g.attendance != "canceled")
 
 
-class Guest(models.Model):
-    rescheduled_from = models.OneToOneField("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replacement_booking")
+class Booking(models.Model):
+    """One guest's reservation and party on one scheduled departure."""
+
     @property
     def vendor_label(self):
         mapping = getattr(self, "vendorbooking", None)
@@ -127,7 +128,7 @@ class Guest(models.Model):
     last_name = models.CharField(max_length=80)
     email = models.EmailField(blank=True, null=True)
     contact = models.ForeignKey(
-        Contact,
+        Guest,
         on_delete=models.PROTECT,
         related_name="bookings",
     )
@@ -193,6 +194,26 @@ class Guest(models.Model):
             None,
         )
 
+    @property
+    def can_greet(self):
+        return (self.attendance != self.Attendance.CANCELED
+                and self.contact.greeting_eligible
+                and bool(self.contact.phone_number or self.contact.email))
+
+    @property
+    def greeting_unavailable_reason(self):
+        if self.contact.greeted_at:
+            return "This guest has already been greeted."
+        if self.contact.has_attended:
+            return "Returning guest — no greeting needed."
+        if self.attendance == self.Attendance.CANCELED:
+            return "Guest is canceled"
+        return "Add a phone number or email address to send the welcome message"
+
+    @property
+    def history_status(self):
+        return self.get_attendance_display()
+
     def _channel_available(self, channel):
         if channel in {
             Conversation.Channel.SMS,
@@ -205,11 +226,12 @@ class Guest(models.Model):
     def unread_count(self):
         if hasattr(self, "_unread_count"):
             return self._unread_count
-        return Message.objects.filter(
+        count = Message.objects.filter(
             conversation__contact_id=self.contact_id,
             direction=Message.Direction.INCOMING,
             is_read=False,
         ).count()
+        return max(count, int(self.contact.conversations.filter(marked_unread=True).exists()))
 
     @property
     def chat_started(self):

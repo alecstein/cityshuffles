@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from bookings.models import Guest, Tour
+from bookings.models import Booking, Tour
 from bookings.services import with_chat_state
 from .forms import AttendanceForm, ManualBookingForm
 from .services import booking_modal_data, create_manual_booking
@@ -260,7 +260,7 @@ def retry_thank_you(request, pk):
 @require_POST
 @login_required
 def guest_update(request, pk):
-    guest = get_object_or_404(Guest.objects.select_related("booked_tour", "contact"),
+    guest = get_object_or_404(Booking.objects.select_related("booked_tour", "contact"),
                               pk=pk, booked_tour__in=accessible_tours(request.user))
     form = AttendanceForm(request.POST, instance=guest)
     saved = form.is_valid()
@@ -287,7 +287,7 @@ def party_response(request, tour):
 @login_required
 def guest_party_update(request, pk):
     guest = get_object_or_404(
-        Guest.objects.select_related("booked_tour"),
+        Booking.objects.select_related("booked_tour"),
         pk=pk,
         booked_tour__in=accessible_tours(request.user),
     )
@@ -311,14 +311,14 @@ def guest_party_update(request, pk):
 @login_required
 def guest_feedback(request, pk):
     guest = get_object_or_404(
-        Guest.objects.select_related("booked_tour"),
+        Booking.objects.select_related("booked_tour"),
         pk=pk,
         booked_tour__in=accessible_tours(request.user),
     )
     cycle = {
-        Guest.Feedback.NONE: Guest.Feedback.UP,
-        Guest.Feedback.UP: Guest.Feedback.DOWN,
-        Guest.Feedback.DOWN: Guest.Feedback.NONE,
+        Booking.Feedback.NONE: Booking.Feedback.UP,
+        Booking.Feedback.UP: Booking.Feedback.DOWN,
+        Booking.Feedback.DOWN: Booking.Feedback.NONE,
     }
     guest.feedback = cycle[guest.feedback]
     guest.save(update_fields=["feedback"])

@@ -5,8 +5,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from bookings.models import Guest, Tour, TourProduct
-from messaging.models import Contact, Conversation, Message
+from bookings.models import Booking, Tour, TourProduct
+from messaging.models import Guest, Conversation, Message
 from integrations.models import Connection, VendorBooking, VendorEvent, VendorGuest, VendorTour
 
 
@@ -79,7 +79,7 @@ class Command(BaseCommand):
             for guest_index, (first, last, phone, adults, children) in enumerate(guest_data[tour_index - 1], start=1):
                 external_guest = f"demo-guest-{tour_index}-{guest_index}"
                 email = f"{first.lower()}.{last.lower()}@demotours.example"
-                contact, _ = Contact.objects.get_or_create(
+                contact, _ = Guest.objects.get_or_create(
                     email=email,
                     defaults={"name": f"{first} {last}", "phone_number": phone},
                 )
@@ -95,7 +95,7 @@ class Command(BaseCommand):
                     external_id=f"demo-booking-{tour_index}-{guest_index}",
                 ).select_related("booking").first()
                 if not booking:
-                    guest = Guest.objects.create(
+                    guest = Booking.objects.create(
                         first_name=first, last_name=last, email=email, contact=contact,
                         booked_tour=event_map.departure, imported=True, adults=adults, children=children,
                         original_adults=adults, original_children=children,

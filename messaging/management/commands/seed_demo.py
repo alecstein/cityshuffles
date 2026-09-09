@@ -3,9 +3,9 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from bookings.models import Guest, Guide, Tour
+from bookings.models import Booking, Guide, Tour
 from bookings.services import send_welcome_for_guest
-from messaging.models import Contact, Conversation, Message
+from messaging.models import Guest, Conversation, Message
 
 
 class Command(BaseCommand):
@@ -104,7 +104,7 @@ class Command(BaseCommand):
         for first_name, last_name, email, phone, tour_name, items in guest_data:
             full_name = f"{first_name} {last_name}"
             contact_lookup = {"phone_number": phone} if phone else {"email": email}
-            contact, _ = Contact.objects.get_or_create(
+            contact, _ = Guest.objects.get_or_create(
                 defaults={
                     "name": full_name,
                     "phone_number": phone,
@@ -133,7 +133,7 @@ class Command(BaseCommand):
                     else Conversation.Channel.EMAIL
                 ),
             )
-            guest, _ = Guest.objects.update_or_create(
+            guest, _ = Booking.objects.update_or_create(
                 email=email,
                 defaults={
                     "first_name": first_name,

@@ -1,9 +1,9 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bookings.models import Guest, Tour, TourProduct
+from bookings.models import Booking, Tour, TourProduct
 from integrations.models import Connection, VendorBooking, VendorEvent, VendorGuest, VendorTour
-from messaging.models import Contact
+from messaging.models import Guest
 
 
 class Command(BaseCommand):
@@ -19,11 +19,11 @@ class Command(BaseCommand):
         event_ids = list(VendorEvent.objects.filter(connection=connection).values_list("departure_id", flat=True))
         contact_ids = list(VendorGuest.objects.filter(connection=connection).values_list("contact_id", flat=True))
         VendorBooking.objects.filter(connection=connection).delete()
-        Guest.objects.filter(pk__in=booking_ids).delete()
+        Booking.objects.filter(pk__in=booking_ids).delete()
         VendorEvent.objects.filter(connection=connection).delete()
         Tour.objects.filter(pk__in=event_ids).delete()
         VendorGuest.objects.filter(connection=connection).delete()
-        Contact.objects.filter(pk__in=contact_ids, bookings__isnull=True).delete()
+        Guest.objects.filter(pk__in=contact_ids, bookings__isnull=True).delete()
         VendorTour.objects.filter(connection=connection).delete()
         TourProduct.objects.filter(name__startswith="DemoTours ", departures__isnull=True).delete()
         connection.delete()

@@ -39,6 +39,8 @@ def send_message(conversation, body):
     With no Twilio credentials, return LOCAL so the whole UI remains
     usable during development.
     """
+    if not conversation.contact.bookings.exists():
+        raise ValueError("A guest needs a current or past booking before messaging.")
     if conversation.channel == Conversation.Channel.EMAIL:
         from integrations.gmail import send_email
         from integrations.models import Connection

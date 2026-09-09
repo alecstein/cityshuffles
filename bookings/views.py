@@ -1,19 +1,18 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Prefetch, Case, When, Value, IntegerField, CharField, Exists, OuterRef
+from django.db.models import Prefetch, Case, When, Value, IntegerField, CharField
 from django.utils import timezone
 from itertools import groupby
 from django.http import HttpResponse, JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 
 from mytours.forms import AttendanceForm, BookingForm, ManualBookingForm
 from mytours.services import booking_modal_data, create_manual_booking, update_booking
-from messaging.models import Message
 
-from .models import Guest, Tour
+from .models import Booking, Tour
 from .services import (
     open_conversation_for_booking, open_conversation_for_guest,
     start_conversation_for_booking, start_conversation_for_guest, with_chat_state,
@@ -22,7 +21,11 @@ from integrations.models import VendorBooking
 
 
 def dashboard_context(add_booking_form=None, add_booking_tour=None):
-    guests = with_chat_state(Guest.objects.annotate(canceled_order=Case(
+    if add_booking_form is None:
+        add_booking_form = ManualBookingForm()
+    add_booking_form.fields["tour"].required = True
+    add_booking_form.fields["tour"].empty_label = "Choose a tour"
+    guests = with_chat_state(Booking.objects.annotate(canceled_order=Case(
         When(attendance="canceled", then=Value(1)), default=Value(0), output_field=IntegerField()
     ), vendor_order=Case(When(vendorbooking__is_mock=True, then=Value("DemoTours")), When(vendorbooking__connection__vendor="manual", then=Value("Manual/Walk-up")), default="vendorbooking__connection__vendor", output_field=CharField()))).order_by("canceled_order", "vendor_order", "last_name", "first_name", "pk").select_related("contact", "vendorbooking__connection", "vendorbooking__event").prefetch_related(
         Prefetch(
@@ -38,17 +41,14 @@ def dashboard_context(add_booking_form=None, add_booking_tour=None):
             guest.modal_data = booking_modal_data(tour, guest)
     date_groups = [{"date": day, "tours": list(items)} for day, items in
                    groupby(tours, key=lambda t: timezone.localtime(t.start_time).date())]
-    booking_messages = Message.objects.filter(
-        conversation__contact_id=OuterRef("booking__contact_id"),
-    )
     new_bookings = (
         VendorBooking.objects
         .filter(is_new=True, conversation_started_at__isnull=True)
-        .annotate(chat_exists=Exists(booking_messages))
-        .filter(chat_exists=False)
-        .exclude(source__status__in=["cancelled", "canceled"])
+        .exclude(booking__attendance=Booking.Attendance.CANCELED)
+        .exclude(source__has_key="status", source__status__in=["cancelled", "canceled"])
         .select_related(
             "booking__contact",
+            "booking__booked_tour",
             "booking__vendorbooking__connection",
             "event__departure",
             "connection",
@@ -59,13 +59,19 @@ def dashboard_context(add_booking_form=None, add_booking_tour=None):
                 to_attr="bookings_conversations",
             )
         )
-        .order_by("event__departure__start_time", "pk")
+        .order_by("booking__booked_tour__start_time", "pk")
     )
+    new_bookings = list(new_bookings)
+    for vendor_booking in new_bookings:
+        vendor_booking.booking.modal_data = booking_modal_data(
+            vendor_booking.booking.booked_tour,
+            vendor_booking.booking,
+        )
     return {
         "tours": tours,
         "date_groups": date_groups,
         "new_bookings": new_bookings,
-        "add_booking_form": add_booking_form or ManualBookingForm(),
+        "add_booking_form": add_booking_form,
         "add_booking_tour": add_booking_tour,
     }
 
@@ -77,9 +83,11 @@ def index(request):
 
 @require_POST
 @login_required
-def add_booking(request, tour_pk):
-    tour = get_object_or_404(Tour, pk=tour_pk)
+def add_booking(request, tour_pk=None):
+    tour = get_object_or_404(Tour, pk=tour_pk) if tour_pk else None
     form = ManualBookingForm(request.POST)
+    if tour is None:
+        form.fields["tour"].required = True
     if not form.is_valid():
         if request.headers.get("Accept") == "application/json":
             return JsonResponse({"errors": form.errors}, status=400)
@@ -132,7 +140,7 @@ def open_booking_conversation(request, pk):
 @require_POST
 @login_required
 def open_guest_conversation(request, pk):
-    guest = get_object_or_404(Guest.objects.select_related("contact"), pk=pk)
+    guest = get_object_or_404(Booking.objects.select_related("contact"), pk=pk)
     conversation = open_conversation_for_guest(guest)
     if conversation is None:
         messages.error(
@@ -156,7 +164,7 @@ def ignore_new_booking(request, pk):
 @require_POST
 @login_required
 def start_guest_conversation(request, pk):
-    guest = get_object_or_404(Guest.objects.select_related("contact"), pk=pk)
+    guest = get_object_or_404(Booking.objects.select_related("contact"), pk=pk)
     vendor_booking = (
         VendorBooking.objects
         .filter(booking_id=guest.pk)
@@ -176,30 +184,13 @@ def start_guest_conversation(request, pk):
     return redirect(f"{reverse('messaging:inbox')}?conversation={conversation.pk}")
 
 
-@require_GET
-@login_required
-def guest_edit(request, pk):
-    guest = get_object_or_404(Guest.objects.select_related("contact", "booked_tour__responsible", "vendorbooking__connection", "vendorbooking__event"), pk=pk)
-    return booking_edit_page(request, guest, BookingForm(guest=guest))
-
-
-def booking_edit_page(request, guest, form, status=200):
-    return render(request, "bookings/booking_edit.html", {
-        "add_form": form, "modal_mode": "edit", "modal_open": True,
-        "modal_tour": guest.booked_tour, "modal_data": booking_modal_data(guest.booked_tour, guest),
-        "action_url": reverse("bookings:guest_update", args=[guest.pk]),
-        "delete_action_url": reverse("bookings:guest_delete", args=[guest.pk]) if guest.is_manual else "",
-        "submit_label": "Save booking",
-    }, status=status)
-
-
 @require_POST
 @login_required
 def guest_update(request, pk):
-    guest = get_object_or_404(Guest.objects.select_related("contact", "booked_tour__responsible", "vendorbooking__connection", "vendorbooking__event"), pk=pk)
+    guest = get_object_or_404(Booking.objects.select_related("contact", "booked_tour__responsible", "vendorbooking__connection", "vendorbooking__event"), pk=pk)
     form = BookingForm(request.POST, guest=guest)
     if form.is_valid():
-        update_booking(guest, form, sender=request.user)
+        update_booking(guest, form)
         target = request.POST.get("return_url", "")
         if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
             target = reverse("bookings:index")
@@ -208,14 +199,18 @@ def guest_update(request, pk):
         return redirect(target)
     if request.headers.get("Accept") == "application/json":
         return JsonResponse({"errors": form.errors}, status=400)
-    return booking_edit_page(request, guest, form, status=400)
+    messages.error(request, "Could not save the booking. Please check the form and try again.")
+    target = request.POST.get("return_url", "")
+    if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        target = reverse("bookings:index")
+    return redirect(target)
 
 
 @require_POST
 @login_required
 def guest_attendance_update(request, pk):
     guest = get_object_or_404(
-        Guest.objects.select_related(
+        Booking.objects.select_related(
             "booked_tour", "contact", "vendorbooking__connection", "vendorbooking__event",
         ).prefetch_related(
             Prefetch("contact__conversations", to_attr="bookings_conversations"),
@@ -238,7 +233,7 @@ def guest_attendance_update(request, pk):
 @login_required
 def guest_delete(request, pk):
     guest = get_object_or_404(
-        Guest.objects.select_related("booked_tour"),
+        Booking.objects.select_related("booked_tour"),
         pk=pk,
         is_manual=True,
     )

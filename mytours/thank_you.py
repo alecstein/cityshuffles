@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from twilio.base.exceptions import TwilioRestException
 
-from bookings.models import Guest
+from bookings.models import Booking
 from message_templates.models import MessageTemplate
 from messaging.models import Conversation, Message
 from messaging.services import SendResult, send_message
@@ -45,7 +45,7 @@ def request_thank_you(tour, sender, template=None, *, kind="closing", body=None,
                 else ThankYouAction.objects.filter(tour=tour, kind=kind).first())
     if existing:
         return existing, False
-    guests = list(tour.guests.exclude(attendance=Guest.Attendance.CANCELED)
+    guests = list(tour.guests.exclude(attendance=Booking.Attendance.CANCELED)
                   .select_related("contact", "vendorbooking__connection").order_by("pk"))
     if not guests:
         raise ValueError("There are no active bookings on this tour.")

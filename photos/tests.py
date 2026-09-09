@@ -8,8 +8,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
-from bookings.models import Tour, Guest
-from messaging.models import Contact
+from bookings.models import Tour, Booking
+from messaging.models import Guest
 from message_templates.models import MessageTemplate
 from mytours.thank_you import request_thank_you
 from .models import Photo, Album
@@ -74,7 +74,7 @@ class PhotoTests(TestCase):
     @override_settings(PUBLIC_BASE_URL="https://example.com")
     def test_photos_message_snapshots_departure_link(self, worker):
         self.upload()
-        guest = Guest.objects.create(first_name="Guest", booked_tour=self.tour, contact=Contact.objects.create(name="Guest"), imported=True)
+        guest = Booking.objects.create(first_name="Guest", booked_tour=self.tour, contact=Guest.objects.create(name="Guest"), imported=True)
         template = MessageTemplate.objects.get(system_key="photos")
         url = "https://example.com" + reverse("photos:album", args=[Album.objects.get().token])
         action, created = request_thank_you(self.tour, self.user, template, kind="photos", photos_url=url)
@@ -87,6 +87,6 @@ class PhotoTests(TestCase):
     @override_settings(PUBLIC_BASE_URL="")
     def test_local_link_not_sent_to_real_guests(self):
         self.upload()
-        Guest.objects.create(first_name="Guest", booked_tour=self.tour, contact=Contact.objects.create(name="Guest"), imported=True)
+        Booking.objects.create(first_name="Guest", booked_tour=self.tour, contact=Guest.objects.create(name="Guest"), imported=True)
         with self.assertRaisesMessage(ValueError, "public HTTPS"):
             request_thank_you(self.tour, self.user, MessageTemplate.objects.get(system_key="photos"), kind="photos", photos_url="http://localhost/photos/test/")

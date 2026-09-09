@@ -2,8 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from bookings.models import Tour, Guest
-from messaging.models import Contact
+from bookings.models import Tour, Booking
+from messaging.models import Guest
 
 
 class AllToursTests(TestCase):
@@ -12,7 +12,7 @@ class AllToursTests(TestCase):
         self.guide = get_user_model().objects.create_user(username="guide")
         self.assigned = Tour.objects.create(name="Assigned departure", start_time=timezone.now(), responsible=self.guide)
         self.unassigned = Tour.objects.create(name="Unassigned departure", start_time=timezone.now())
-        self.guest = Guest.objects.create(first_name="Test", last_name="Guest", contact=Contact.objects.create(name="Test Guest"), booked_tour=self.unassigned)
+        self.guest = Booking.objects.create(first_name="Test", last_name="Guest", contact=Guest.objects.create(name="Test Guest"), booked_tour=self.unassigned)
         self.client.force_login(self.admin)
 
     def test_admin_calendar_reuses_detail_for_any_departure(self):

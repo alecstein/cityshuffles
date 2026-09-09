@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Guest, Guide, Tour
+from .models import Booking, Guide, Tour
 
 
 @admin.register(Guide)
@@ -13,8 +13,8 @@ class TourAdmin(admin.ModelAdmin):
     list_display = ("name", "start_time")
 
 
-@admin.register(Guest)
-class GuestAdmin(admin.ModelAdmin):
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
     list_display = (
         "first_name",
         "last_name",

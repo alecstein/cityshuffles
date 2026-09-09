@@ -4,10 +4,19 @@ from unittest.mock import patch
 
 from .services import SendResult
 
-from .models import Contact, Conversation, Message
+from .models import Guest, Conversation, Message
+from bookings.models import Booking, Tour
+from django.utils import timezone
 
 
 class MessagingTests(TestCase):
+    def book(self, contact):
+        return Booking.objects.create(
+            contact=contact, first_name=contact.name,
+            booked_tour=Tour.objects.create(name="Test departure", start_time=timezone.now()),
+            imported=True,
+        )
+
     @patch("messaging.views.send_message")
     def test_staff_attribution_is_internal_and_shared(self, send_mock):
         send_mock.return_value = SendResult(None, Message.Status.LOCAL)
@@ -23,18 +32,6 @@ class MessagingTests(TestCase):
         self.client.force_login(colleague)
         response = self.client.get(reverse("messaging:message_list", args=[self.conversation.pk]))
         self.assertContains(response, "Alex Guide")
-
-    def test_inbox_editor_updates_contact_and_disables_missing_phone(self):
-        response = self.client.post(reverse("messaging:edit_contact", args=[self.conversation.pk]),
-                                    {"name": "Updated Guest", "phone_number": "", "email": "updated@example.com"},
-                                    HTTP_HX_REQUEST="true")
-        self.assertEqual(response.headers["HX-Refresh"], "true")
-        self.contact.refresh_from_db()
-        self.assertEqual(self.contact.name, "Updated Guest")
-        self.assertIsNone(self.contact.phone_number)
-        response = self.client.get(reverse("messaging:conversation", args=[self.conversation.pk]))
-        self.assertEqual(sum(not tab["available"] for tab in response.context["channel_tabs"]), 2)
-        self.assertContains(response, 'class="contact-editor"')
 
     def test_inbox_lists_a_contact_once_across_multiple_channels(self):
         whatsapp = Conversation.objects.create(
@@ -55,7 +52,7 @@ class MessagingTests(TestCase):
         self.assertEqual(rows[0]["conversation"].pk, whatsapp.pk)
 
     def test_inbox_orders_active_chats_before_empty_placeholders(self):
-        active_contact = Contact.objects.create(
+        active_contact = Guest.objects.create(
             name="Recently active",
             phone_number="+12125550001",
         )
@@ -63,15 +60,17 @@ class MessagingTests(TestCase):
             contact=active_contact,
             channel=Conversation.Channel.SMS,
         )
+        self.book(active_contact)
         Message.objects.create(
             conversation=active,
             direction=Message.Direction.INCOMING,
             body="Latest message",
         )
-        empty_contact = Contact.objects.create(
+        empty_contact = Guest.objects.create(
             name="Empty placeholder",
             phone_number="+12125550002",
         )
+        self.book(empty_contact)
         Conversation.objects.create(
             contact=empty_contact,
             channel=Conversation.Channel.SMS,
@@ -86,18 +85,20 @@ class MessagingTests(TestCase):
         self.assertFalse(rows[empty_index]["has_messages"])
 
     def test_chat_search_matches_contact_names_and_message_bodies(self):
-        name_contact = Contact.objects.create(
+        name_contact = Guest.objects.create(
             name="Searchable Name",
             phone_number="+12125550006",
         )
+        self.book(name_contact)
         Conversation.objects.create(
             contact=name_contact,
             channel=Conversation.Channel.SMS,
         )
-        body_contact = Contact.objects.create(
+        body_contact = Guest.objects.create(
             name="Different Name",
             phone_number="+12125550007",
         )
+        self.book(body_contact)
         body_conversation = Conversation.objects.create(
             contact=body_contact,
             channel=Conversation.Channel.SMS,
@@ -131,7 +132,7 @@ class MessagingTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        self.contact = Contact.objects.create(
+        self.contact = Guest.objects.create(
             name="Test Person",
             phone_number="+12125550000",
         )
@@ -139,6 +140,7 @@ class MessagingTests(TestCase):
             contact=self.contact,
             channel=Conversation.Channel.SMS,
         )
+        self.book(self.contact)
 
     @override_settings(
         TWILIO_ACCOUNT_SID="",
@@ -186,10 +188,11 @@ class MessagingTests(TestCase):
         )
 
     def test_email_only_contact_disables_phone_channels(self):
-        email_contact = Contact.objects.create(
+        email_contact = Guest.objects.create(
             name="Email Guest",
             email="email.guest@example.com",
         )
+        self.book(email_contact)
         email_conversation = Conversation.objects.create(
             contact=email_contact,
             channel=Conversation.Channel.EMAIL,

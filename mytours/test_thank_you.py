@@ -6,10 +6,10 @@ from django.urls import reverse
 from django.utils import timezone
 from twilio.base.exceptions import TwilioRestException
 
-from bookings.models import Guest, Tour
+from bookings.models import Booking, Tour
 from integrations.models import Connection, VendorBooking
 from message_templates.models import MessageTemplate
-from messaging.models import Contact, Conversation, Message
+from messaging.models import Guest, Conversation, Message
 from messaging.services import SendResult
 from .models import ThankYouAction, ThankYouDelivery
 from .thank_you import request_thank_you, process_pending_deliveries, retry_delivery
@@ -19,8 +19,8 @@ class ThankYouTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="guide", first_name="Jon")
         self.tour = Tour.objects.create(name="Brooklyn Bridge", start_time=timezone.now(), responsible=self.user)
-        self.contact = Contact.objects.create(name="Guest One", phone_number="+12125550111", email="guest@example.com")
-        self.guest = Guest.objects.create(first_name="Guest", last_name="One", contact=self.contact, booked_tour=self.tour, imported=True)
+        self.contact = Guest.objects.create(name="Guest One", phone_number="+12125550111", email="guest@example.com")
+        self.guest = Booking.objects.create(first_name="Guest", last_name="One", contact=self.contact, booked_tour=self.tour, imported=True)
         self.client.force_login(self.user)
 
     def test_button_stays_disabled_and_repeat_posts_do_not_duplicate(self):
@@ -58,8 +58,8 @@ class ThankYouTests(TestCase):
         send.assert_called_once()
 
     def test_dedupe_contact_and_exclude_canceled(self):
-        Guest.objects.create(first_name="Repeat", contact=self.contact, booked_tour=self.tour, imported=True)
-        Guest.objects.create(first_name="Canceled", contact=Contact.objects.create(name="Canceled"), booked_tour=self.tour, attendance="canceled", imported=True)
+        Booking.objects.create(first_name="Repeat", contact=self.contact, booked_tour=self.tour, imported=True)
+        Booking.objects.create(first_name="Canceled", contact=Guest.objects.create(name="Canceled"), booked_tour=self.tour, attendance="canceled", imported=True)
         action, _ = request_thank_you(self.tour, self.user)
         self.assertEqual(action.deliveries.count(), 1)
 
@@ -130,7 +130,7 @@ class ThankYouTests(TestCase):
         template.delete()
         self.assertEqual(action.deliveries.get().body, "Thanks Guest One for joining Brooklyn Bridge with Jon.")
         other_tour = Tour.objects.create(name="Other", start_time=timezone.now(), responsible=self.user)
-        Guest.objects.create(first_name="Other", contact=self.contact, booked_tour=other_tour, imported=True)
+        Booking.objects.create(first_name="Other", contact=self.contact, booked_tour=other_tour, imported=True)
         bad = MessageTemplate.objects.create(name="Unknown", body="Hello {missing}")
         with self.assertRaises(ValueError):
             request_thank_you(other_tour, self.user, bad)

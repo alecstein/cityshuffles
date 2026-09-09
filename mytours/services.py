@@ -3,9 +3,9 @@ import json
 
 from django.db import transaction
 
-from bookings.models import Guest, Tour
+from bookings.models import Booking, Tour
 from integrations.models import Connection, VendorBooking
-from messaging.models import Contact
+from messaging.models import Guest
 from django.utils import timezone
 
 
@@ -36,18 +36,18 @@ def booking_modal_data(tour, guest=None):
 
 
 @transaction.atomic
-def create_manual_booking(tour: Tour, form, contact_override=None):
+def create_manual_booking(tour: Tour, form):
     """Create the local guest and vendor-side records for a walk-up booking."""
     tour = form.cleaned_data.get("tour") or tour
     name = form.cleaned_data["name"].strip()
     first_name, _, last_name = name.partition(" ")
     phone = form.cleaned_data["phone_number"]
     email = form.cleaned_data["email"] or None
-    contact = contact_override or (Contact.objects.filter(phone_number=phone).first() if phone else None)
+    contact = Guest.objects.filter(phone_number=phone).first() if phone else None
     if contact is None and email:
-        contact = Contact.objects.filter(email=email).first()
+        contact = Guest.objects.filter(email__iexact=email).first()
     if contact is None:
-        contact = Contact.objects.create(
+        contact = Guest.objects.create(
             name=name,
             phone_number=phone,
             email=email,
@@ -65,10 +65,14 @@ def create_manual_booking(tour: Tour, form, contact_override=None):
             changed_fields.append("email")
         if changed_fields:
             contact.save(update_fields=changed_fields)
+        # The guest's current identity is shared by past and future bookings.
+        Booking.objects.filter(contact=contact).update(
+            first_name=first_name[:80], last_name=last_name[:80], email=contact.email,
+        )
 
     adults = form.cleaned_data["adults"]
     children = form.cleaned_data["children"]
-    guest = Guest.objects.create(
+    guest = Booking.objects.create(
         first_name=first_name[:80],
         last_name=last_name[:80],
         email=email,
@@ -80,11 +84,10 @@ def create_manual_booking(tour: Tour, form, contact_override=None):
         children=children,
         original_adults=adults,
         original_children=children,
-        attendance=form.cleaned_data.get("attendance") or Guest.Attendance.EXPECTED,
+        attendance=Booking.Attendance.EXPECTED,
         special_requests=form.cleaned_data.get("special_requests", ""),
         language=form.cleaned_data.get("language", ""),
         tour_notes=form.cleaned_data.get("tour_notes", ""),
-        booking_issue=form.cleaned_data.get("booking_issue", ""),
     )
     connection, _ = Connection.objects.get_or_create(
         vendor="manual",
@@ -111,26 +114,9 @@ def create_manual_booking(tour: Tour, form, contact_override=None):
 
 
 @transaction.atomic
-def update_booking(guest: Guest, form, sender=None):
+def update_booking(guest: Booking, form):
     """Update the shared guest/contact details used by the booking modal."""
     target = form.cleaned_data.get("tour") or guest.booked_tour
-    if target.pk != guest.booked_tour_id:
-        guest = Guest.objects.select_for_update().get(pk=guest.pk)
-        existing = Guest.objects.filter(rescheduled_from=guest).first()
-        if existing:
-            return existing
-        replacement = create_manual_booking(target, form, contact_override=guest.contact)
-        replacement.rescheduled_from = guest
-        replacement.save(update_fields=["rescheduled_from"])
-        original_vendor = getattr(guest, "vendorbooking", None)
-        if original_vendor and original_vendor.is_mock:
-            VendorBooking.objects.filter(booking=replacement).update(is_mock=True)
-        guest.attendance = Guest.Attendance.CANCELED
-        guest.attendance_overridden = True
-        guest.save(update_fields=["attendance", "attendance_overridden"])
-        from bookings.services import send_welcome_for_guest
-        transaction.on_commit(lambda: send_welcome_for_guest(replacement.pk, force=True, sender=sender))
-        return replacement
     name = form.cleaned_data["name"].strip()
     first_name, _, last_name = name.partition(" ")
     phone = form.cleaned_data["phone_number"]
@@ -150,19 +136,16 @@ def update_booking(guest: Guest, form, sender=None):
     guest.email = email
     guest.adults = adults
     guest.children = children
+    guest.booked_tour = target
     if count_changed:
         guest.party_size_overridden = True
-    attendance = form.cleaned_data.get("attendance") or guest.attendance
-    if attendance != guest.attendance:
-        guest.attendance_overridden = True
-    guest.attendance = attendance
     for field in ("special_requests", "language", "tour_notes"):
         setattr(guest, field, form.cleaned_data[field])
     guest.save(update_fields=[
         "first_name", "last_name", "email", "adults", "children", "party_size_overridden",
-        "attendance", "attendance_overridden", "special_requests", "language", "tour_notes", "booking_issue",
+        "special_requests", "language", "tour_notes", "booked_tour",
     ])
-    Guest.objects.filter(contact=contact).exclude(pk=guest.pk).update(
+    Booking.objects.filter(contact=contact).exclude(pk=guest.pk).update(
         first_name=guest.first_name, last_name=guest.last_name, email=email,
     )
     return guest

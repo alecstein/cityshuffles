@@ -7,6 +7,10 @@
     <div>
         <h1>Dashboard</h1>
     </div>
+    {% url 'bookings:new_booking' as new_booking_url %}
+    <button type="button" data-action="{{ new_booking_url }}" data-mode="add"
+            data-booking='{"adults":1,"children":0,"vendor":"Manual/Walk-up","booking_code":"Assigned on save"}'
+            onclick="openBookingModal(this)">New booking</button>
 </section>
 
 <details class="new-bookings-section" open aria-labelledby="new-bookings-heading">
@@ -25,8 +29,8 @@
                         {% include "bookings/partials/guest_row_main.html" with guest=vendor_booking.booking attendance_action_url=attendance_action_url %}
                     </td>
                     <td class="new-booking-tour-cell">
-                        <a class="new-booking-tour-link" href="{% url 'mytours:all' %}?date={{ vendor_booking.event.departure.start_time|date:'Y-m-d' }}&tour={{ vendor_booking.event.departure.pk }}">{{ vendor_booking.event.departure.name }}</a>
-                        <span class="new-booking-time">{{ vendor_booking.event.departure.start_time|date:"M j, g:i A" }}</span>
+                        <a class="new-booking-tour-link" href="{% url 'mytours:all' %}?date={{ vendor_booking.booking.booked_tour.start_time|date:'Y-m-d' }}&tour={{ vendor_booking.booking.booked_tour.pk }}">{{ vendor_booking.booking.booked_tour.name }}</a>
+                        <span class="new-booking-time">{{ vendor_booking.booking.booked_tour.start_time|date:"M j, g:i A" }}</span>
                     </td>
                     <td class="new-booking-action">
                         {% include "bookings/partials/new_booking_actions.html" %}
@@ -82,6 +86,8 @@
 </div>
 {% if add_booking_tour %}
     {% url 'bookings:add_booking' add_booking_tour.pk as modal_action_url %}
+{% else %}
+    {% url 'bookings:new_booking' as modal_action_url %}
 {% endif %}
-{% include "mytours/partials/add_booking_modal.html" with action_url=modal_action_url add_form=add_booking_form modal_tour=add_booking_tour modal_open=add_booking_tour %}
+{% include "mytours/partials/add_booking_modal.html" with action_url=modal_action_url add_form=add_booking_form modal_tour=add_booking_tour modal_open=add_booking_form.errors %}
 {% endblock %}

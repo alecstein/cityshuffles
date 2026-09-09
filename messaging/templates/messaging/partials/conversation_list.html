@@ -10,6 +10,7 @@
     <span class="conversation-copy">
         <span class="conversation-topline">
             <strong>{{ conversation.contact.name }}</strong>
+            {% if row.is_finished %}<small>Finished</small>{% endif %}
         </span>
 
         <span class="conversation-preview">

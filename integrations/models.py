@@ -82,7 +82,7 @@ class VendorEvent(models.Model):
 class VendorGuest(models.Model):
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE)
     external_id = models.CharField(max_length=200)
-    contact = models.ForeignKey("messaging.Contact", on_delete=models.PROTECT)
+    contact = models.ForeignKey("messaging.Guest", on_delete=models.PROTECT)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["connection", "external_id"], name="vendor_guest_identity")]
@@ -91,7 +91,7 @@ class VendorGuest(models.Model):
 class VendorBooking(models.Model):
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE)
     external_id = models.CharField(max_length=100)
-    booking = models.OneToOneField("bookings.Guest", on_delete=models.PROTECT)
+    booking = models.OneToOneField("bookings.Booking", on_delete=models.PROTECT)
     event = models.ForeignKey("integrations.VendorEvent", null=True, blank=True,
                               on_delete=models.PROTECT, related_name="bookings")
     is_new = models.BooleanField(default=True)

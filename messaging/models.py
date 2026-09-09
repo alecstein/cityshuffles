@@ -31,7 +31,9 @@ class PushDelivery(models.Model):
         constraints = [models.UniqueConstraint(fields=["device", "message"], name="unique_push_message_device")]
 
 
-class Contact(models.Model):
+class Guest(models.Model):
+    """A guest's shared identity and lifetime communication history."""
+
     class PreferredChannel(models.TextChoices):
         AUTOMATIC = "auto", "Automatic"
         SMS = "sms", "SMS"
@@ -58,6 +60,7 @@ class Contact(models.Model):
     )
     last_inbound_at = models.DateTimeField(null=True, blank=True)
     whatsapp_opted_in = models.BooleanField(default=False)
+    greeted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -65,6 +68,16 @@ class Contact(models.Model):
 
     def __str__(self):
         return self.name or self.email or self.phone_number or "Unnamed contact"
+
+    @property
+    def has_attended(self):
+        return self.bookings.filter(
+            attendance="present", booked_tour__start_time__lt=timezone.now(),
+        ).exists()
+
+    @property
+    def greeting_eligible(self):
+        return not self.greeted_at and not self.has_attended
 
     @property
     def automatic_channel(self):
@@ -94,7 +107,7 @@ class Conversation(models.Model):
         CLOSED = "closed", "Closed"
 
     contact = models.ForeignKey(
-        Contact,
+        Guest,
         on_delete=models.CASCADE,
         related_name="conversations",
     )
@@ -108,6 +121,7 @@ class Conversation(models.Model):
         choices=Status.choices,
         default=Status.OPEN,
     )
+    marked_unread = models.BooleanField(default=False)
     last_message_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -125,10 +139,11 @@ class Conversation(models.Model):
 
     @property
     def unread_count(self):
-        return self.messages.filter(
+        count = self.messages.filter(
             direction=Message.Direction.INCOMING,
             is_read=False,
         ).count()
+        return max(count, int(self.marked_unread))
 
 
 class Message(models.Model):

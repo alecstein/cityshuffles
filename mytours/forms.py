@@ -1,22 +1,12 @@
 from django import forms
-from bookings.models import Guest, Tour
+from bookings.models import Booking, Tour
 from django.utils import timezone
-from messaging.models import Contact
+from messaging.models import Guest
 
 
 class AttendanceForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["attendance"].choices = [
-            (
-                value,
-                "Not checked in" if value == Guest.Attendance.EXPECTED else label,
-            )
-            for value, label in self.fields["attendance"].choices
-        ]
-
     class Meta:
-        model = Guest
+        model = Booking
         fields = ("attendance",)
 
 
@@ -74,6 +64,9 @@ class BookingForm(forms.Form):
             raise forms.ValidationError("Enter the guest's name.")
         return value
 
+    def clean_email(self):
+        return self.cleaned_data["email"].strip().lower()
+
     def clean_phone_number(self):
         value = self.cleaned_data["phone_number"].strip()
         if value.startswith("whatsapp:"):
@@ -82,16 +75,13 @@ class BookingForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        if self.guest and cleaned.get("tour") and cleaned["tour"].pk != self.guest.booked_tour_id:
-            if Guest.objects.filter(rescheduled_from=self.guest).exists():
-                self.add_error("tour", "This reservation has already been moved. Edit its replacement booking instead.")
         phone = cleaned.get("phone_number")
         email = cleaned.get("email")
-        contacts = Contact.objects.all()
+        contacts = Guest.objects.all()
         if getattr(self, "guest", None):
             contacts = contacts.exclude(pk=self.guest.contact_id)
         phone_contact = contacts.filter(phone_number=phone).first() if phone else None
-        email_contact = contacts.filter(email=email).first() if email else None
+        email_contact = contacts.filter(email__iexact=email).first() if email else None
         if self.guest:
             if phone_contact:
                 self.add_error("phone_number", "That phone number belongs to another contact.")

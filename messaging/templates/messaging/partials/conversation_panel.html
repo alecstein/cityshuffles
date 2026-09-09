@@ -2,23 +2,7 @@
     <a href="{% url 'messaging:inbox' %}" class="mobile-chat-back" aria-label="Back to chats">‹</a>
     <div>
         <div class="contact-heading">
-            <h2>{{ selected.contact.name }}</h2>
-            <details class="contact-editor" {% if contact_edit_open %}open{% endif %}>
-                <summary class="edit-guest-button" aria-label="Edit {{ selected.contact.name }}" title="Edit contact">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="m16.5 4.5 3 3M5 19l3.4-.7L19.5 7.2a2.1 2.1 0 0 0-3-3L5.4 15.3 5 19Z"></path>
-                    </svg>
-                </summary>
-                <form class="contact-edit-form" method="post"
-                      action="{% url 'messaging:edit_contact' selected.pk %}"
-                      hx-post="{% url 'messaging:edit_contact' selected.pk %}"
-                      hx-target="#conversation-panel">
-                    {% csrf_token %}
-                    {{ contact_form.as_p }}
-                    <button type="submit">Save</button>
-                    <button type="button" onclick="this.closest('details').open = false">Cancel</button>
-                </form>
-            </details>
+            <h2><a class="guest-profile-link" href="{% url 'guests:detail' selected.contact.pk %}">{{ selected.contact.name }}</a></h2>
         </div>
         <div class="conversation-meta">
             {% if selected.channel == 'email' %}
@@ -30,8 +14,17 @@
             {{ selected.get_channel_display }}
         </div>
     </div>
-
+    <form method="post" action="{% url 'messaging:interaction' selected.pk %}" class="interaction-actions">
+        {% csrf_token %}
+        <button type="submit" name="action" value="unread" class="button-secondary">Mark unread</button>
+        {% if is_finished %}
+        <button type="submit" name="action" value="reopen" class="button-secondary">Reopen</button>
+        {% else %}
+        <button type="submit" name="action" value="finish" class="button-secondary">Finish</button>
+        {% endif %}
+    </form>
 </div>
+{% include "messaging/partials/booking_context.html" %}
 {% include "messaging/partials/channel_tabs.html" %}
 <div
     id="message-list"
@@ -57,7 +50,7 @@
         <select id="message-template-select" onchange="applyMessageTemplate(this)">
             <option value="">choose message</option>
             {% for template in message_templates %}
-                <option value="{{ template.pk }}" data-template-body="{{ template.channel_body|escape }}">{{ template.name }}</option>
+                <option value="{{ template.pk }}" data-template-body="{{ template.body|escape }}">{{ template.name }}</option>
             {% endfor %}
         </select>
     </label>
@@ -70,6 +63,8 @@
     {% endif %}
     <button type="submit" class="message-send" aria-label="Send"><span class="send-label">Send</span><svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 19 9-19 9 4-9-4-9Zm4 9h15"/></svg></button>
 </form>
+
+{% include "mytours/partials/add_booking_modal.html" with action_url="" add_form=booking_form modal_open=False %}
 
 <script>
 function applyMessageTemplate(select) {

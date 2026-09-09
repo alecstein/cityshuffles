@@ -1,5 +1,5 @@
 {% if chat_conversation %}
-<a class="guest-chat-icon chat-started{% if chat_extra_class %} {{ chat_extra_class }}{% endif %}"
+<a class="guest-chat-icon chat-started"
    href="{% url 'messaging:inbox' %}?conversation={{ chat_conversation.pk }}"
    aria-label="View chat with {{ chat_guest_name }}{% if chat_unread_count %}, {{ chat_unread_count }} unread messages{% endif %}"
    title="View chat">
@@ -7,10 +7,10 @@
 </a>
 {% else %}
 <button type="{% if chat_disabled %}button{% else %}submit{% endif %}"
-        class="guest-chat-icon{% if not chat_disabled %} chat-started{% endif %}{% if chat_extra_class %} {{ chat_extra_class }}{% endif %}"
+        class="guest-chat-icon{% if not chat_disabled %} chat-started{% endif %}"
         {% if chat_disabled %}disabled{% endif %}
-        aria-label="{% if chat_unavailable %}Chat with {{ chat_guest_name }} is unavailable{% elif chat_disabled %}Open chat with {{ chat_guest_name }} (no contact information){% else %}Open chat with {{ chat_guest_name }}{% endif %}"
-        title="{% if chat_unavailable %}Chat is unavailable{% elif chat_disabled %}Add contact information to open the chat{% else %}Open chat{% endif %}">
+        aria-label="{% if chat_disabled %}Open chat with {{ chat_guest_name }} (no contact information){% else %}Open chat with {{ chat_guest_name }}{% endif %}"
+        title="{% if chat_disabled %}Add contact information to open the chat{% else %}Open chat{% endif %}">
     {% include "mytours/partials/chat_icon.html" %}
 </button>
 {% endif %}

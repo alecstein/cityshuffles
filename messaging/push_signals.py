@@ -1,12 +1,18 @@
 from django.contrib.auth.signals import user_logged_out
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Message, PushDevice, PushDelivery
+from .models import Conversation, Message, PushDevice, PushDelivery
 
 
 @receiver(post_save, sender=Message)
 def incoming_message(sender, instance, created, raw=False, **kwargs):
     if raw or not created or instance.direction != "in" or instance.is_read:
+        return
+    # A new inbound message reopens the guest's shared interaction on all channels.
+    Conversation.objects.filter(contact_id=instance.conversation.contact_id).update(
+        status=Conversation.Status.OPEN,
+    )
+    if not instance.conversation.contact.bookings.exists():
         return
     # All active accounts currently have access to the shared inbox.
     PushDelivery.objects.bulk_create([

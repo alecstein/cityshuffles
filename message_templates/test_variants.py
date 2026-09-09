@@ -3,9 +3,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from bookings.models import Guest, Tour
+from bookings.models import Booking, Tour
 from bookings.services import send_welcome_for_guest
-from messaging.models import Contact, Conversation, Message
+from messaging.models import Guest, Conversation, Message
 from messaging.services import SendResult
 from mytours.thank_you import request_thank_you
 from .models import MessageTemplate
@@ -16,8 +16,8 @@ class VariantTests(TestCase):
         self.user = get_user_model().objects.create_user(username="guide", first_name="Alec", last_name="Stein")
         self.client.force_login(self.user)
         self.tour = Tour.objects.create(name="Test", start_time=timezone.now(), responsible=self.user)
-        self.contact = Contact.objects.create(name="Test guest", email="test@example.com")
-        self.guest = Guest.objects.create(first_name="Test", contact=self.contact, booked_tour=self.tour, imported=True)
+        self.contact = Guest.objects.create(name="Test guest", email="test@example.com")
+        self.guest = Booking.objects.create(first_name="Test", contact=self.contact, booked_tour=self.tour, imported=True)
 
     def test_core_templates_cannot_disable_or_delete(self):
         for key in ("opening", "closing", "photos"):

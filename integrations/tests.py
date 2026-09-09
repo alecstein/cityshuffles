@@ -15,8 +15,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from bookings.models import Guest, Tour, TourProduct
-from messaging.models import Contact, Message
+from bookings.models import Booking, Tour, TourProduct
+from messaging.models import Guest, Message
 from .credentials import (
     cancel_requested,
     parse_freetour_cookie_header,
@@ -63,10 +63,10 @@ class IntegrationTests(TestCase):
             apply_snapshot(self.connection, [(EVENT, [BOOKING])])
             apply_snapshot(self.connection, [(EVENT, [BOOKING])])
             send.assert_not_called()
-        self.assertEqual(Guest.objects.count(), 1)
+        self.assertEqual(Booking.objects.count(), 1)
         self.assertEqual(Tour.objects.count(), 1)
         self.assertEqual(Message.objects.count(), 0)
-        guest = Guest.objects.get()
+        guest = Booking.objects.get()
         self.assertEqual((guest.adults, guest.children), (2, 1))
         self.assertEqual(guest.contact.phone_number, "+4917600000000")
         vendor_booking = VendorBooking.objects.get()
@@ -91,14 +91,14 @@ class IntegrationTests(TestCase):
         apply_snapshot(self.connection, [(EVENT, [BOOKING]), (second, [booking])])
         self.assertEqual(TourProduct.objects.count(), 1)
         self.assertEqual(Tour.objects.count(), 2)
-        self.assertEqual(Guest.objects.count(), 2)
-        self.assertEqual(Contact.objects.count(), 1)
+        self.assertEqual(Booking.objects.count(), 2)
+        self.assertEqual(Guest.objects.count(), 1)
 
     def test_staff_edits_preserved_and_source_cancellation_retained(self):
         apply_snapshot(self.connection, [(EVENT, [BOOKING])])
-        guest = Guest.objects.get()
-        Guest.objects.filter(pk=guest.pk).update(attendance="present", attendance_overridden=True)
-        Contact.objects.filter(pk=guest.contact_id).update(name="Edited Name", phone_number=None)
+        guest = Booking.objects.get()
+        Booking.objects.filter(pk=guest.pk).update(attendance="present", attendance_overridden=True)
+        Guest.objects.filter(pk=guest.contact_id).update(name="Edited Name", phone_number=None)
         canceled = dict(BOOKING, status="cancelled", adults=0)
         apply_snapshot(self.connection, [(EVENT, [canceled])])
         guest.refresh_from_db()
@@ -109,8 +109,8 @@ class IntegrationTests(TestCase):
 
     def test_vendor_party_counts_are_preserved_when_staff_adjusts_actual_count(self):
         apply_snapshot(self.connection, [(EVENT, [BOOKING])])
-        guest = Guest.objects.get()
-        Guest.objects.filter(pk=guest.pk).update(
+        guest = Booking.objects.get()
+        Booking.objects.filter(pk=guest.pk).update(
             adults=3,
             party_size_overridden=True,
         )
@@ -122,20 +122,20 @@ class IntegrationTests(TestCase):
         self.assertEqual(guest.original_adults, 4)
         self.assertEqual(guest.original_children, 2)
 
-    def test_cancellation_and_rescheduling(self):
+    def test_cancellation_updates_existing_booking(self):
         apply_snapshot(self.connection, [(EVENT, [BOOKING])])
         second = dict(EVENT, id="event-2", date="2026-09-08")
         apply_snapshot(self.connection, [(second, [dict(BOOKING, status="cancelled")])])
-        self.assertEqual(Guest.objects.count(), 1)
-        self.assertEqual(Guest.objects.get().attendance, "canceled")
-        self.assertEqual(Guest.objects.get().booked_tour, VendorEvent.objects.get(external_id="event-2").departure)
+        self.assertEqual(Booking.objects.count(), 1)
+        self.assertEqual(Booking.objects.get().attendance, "canceled")
+        self.assertEqual(Booking.objects.get().booked_tour, VendorEvent.objects.get(external_id="event-2").departure)
         apply_snapshot(self.connection, [])
-        self.assertEqual(Guest.objects.count(), 1)
+        self.assertEqual(Booking.objects.count(), 1)
 
     def test_missing_contacts_zero_events_and_dst(self):
         apply_snapshot(self.connection, [(EVENT, [dict(BOOKING, phone="")])])
-        self.assertIsNone(Contact.objects.get().phone_number)
-        self.assertTrue(Contact.objects.get().conversations.exists())
+        self.assertIsNone(Guest.objects.get().phone_number)
+        self.assertTrue(Guest.objects.get().conversations.exists())
         self.assertEqual(departure_time(EVENT).utcoffset().total_seconds(), -4 * 3600)
         self.assertEqual(departure_time(dict(EVENT, date="2026-12-07")).utcoffset().total_seconds(), -5 * 3600)
         with self.assertRaises(IntegrationError):
@@ -148,12 +148,12 @@ class IntegrationTests(TestCase):
                 GuruWalkClient, "bookings", return_value=[dict(BOOKING, status="new-unknown")]):
             with self.assertRaises(IntegrationError):
                 fetch_snapshot(GuruWalkClient("fake"))
-        self.assertEqual(Guest.objects.count(), 0)
+        self.assertEqual(Booking.objects.count(), 0)
 
     def test_transaction_rolls_back_bad_snapshot(self):
         with self.assertRaises(KeyError):
             apply_snapshot(self.connection, [(EVENT, [BOOKING, {}])])
-        self.assertEqual(Guest.objects.count(), 0)
+        self.assertEqual(Booking.objects.count(), 0)
         self.assertEqual(Tour.objects.count(), 0)
 
     def test_auth_fail_pauses_and_preserves_bookings(self):
@@ -165,7 +165,7 @@ class IntegrationTests(TestCase):
         self.connection.refresh_from_db()
         self.assertFalse(self.connection.enabled)
         self.assertEqual(self.connection.auth_status, "failed")
-        self.assertEqual(Guest.objects.count(), 1)
+        self.assertEqual(Booking.objects.count(), 1)
 
     def test_success_and_network_error_separate_health(self):
         save_token(token())
@@ -192,12 +192,12 @@ class IntegrationTests(TestCase):
                 raise RuntimeError("synthetic final status failure")
             return original_update(query, **values)
 
-        with patch("integrations.guruwalk.fetch_snapshot", return_value=[(EVENT, [BOOKING])]), \
+        with patch("integrations.guruwalk.fetch_snapshot", return_value=[(EVENT, [BOOKING])]),\
                 patch.object(QuerySet, "update", fail_success):
             self.assertFalse(run_sync())
         self.connection.refresh_from_db()
         self.assertEqual(self.connection.sync_status, "failed")
-        self.assertEqual(Guest.objects.count(), 0)
+        self.assertEqual(Booking.objects.count(), 0)
         self.assertIn("No bookings were changed", self.connection.detail)
 
     def test_post_commit_diagnostic_failure_does_not_reverse_success(self):
@@ -212,12 +212,12 @@ class IntegrationTests(TestCase):
             if phase == "complete":
                 raise OSError("synthetic diagnostic failure")
 
-        with patch("integrations.guruwalk.fetch_snapshot", return_value=[(EVENT, [BOOKING])]), \
+        with patch("integrations.guruwalk.fetch_snapshot", return_value=[(EVENT, [BOOKING])]),\
                 patch("integrations.guruwalk.write_sync_diagnostic", side_effect=diagnostic):
             self.assertTrue(run_sync())
         self.connection.refresh_from_db()
         self.assertEqual(self.connection.sync_status, "ok")
-        self.assertEqual(Guest.objects.count(), 1)
+        self.assertEqual(Booking.objects.count(), 1)
 
     def test_sync_with_current_health_does_not_make_redundant_auth_call(self):
         save_token(token())
@@ -351,7 +351,7 @@ class IntegrationTests(TestCase):
             def bookings(self, event_id):
                 return []
 
-        with patch("integrations.guruwalk._DaemonExecutor") as executor, \
+        with patch("integrations.guruwalk._DaemonExecutor") as executor,\
                 patch("integrations.guruwalk.wait", side_effect=IntegrationError("stop")):
             executor.return_value.submit.side_effect = lambda *args: Future()
             with self.assertRaises(IntegrationError):
@@ -505,7 +505,7 @@ class IntegrationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("accounts.google.com", response["Location"])
         state = self.client.session["gmail_oauth_state"]
-        with patch("integrations.views.exchange_code", return_value=("access-token", "refresh-token")), \
+        with patch("integrations.views.exchange_code", return_value=("access-token", "refresh-token")),\
                 patch("integrations.views.GmailClient") as client_class:
             client_class.return_value.profile.return_value = "inbox@example.com"
             response = self.client.get(reverse("integrations:gmail_callback"), {

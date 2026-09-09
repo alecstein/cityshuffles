@@ -19,8 +19,8 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from bookings.models import Guest, Tour, TourProduct, departure_fingerprint
-from messaging.models import Contact, Conversation
+from bookings.models import Booking, Tour, TourProduct, departure_fingerprint
+from messaging.models import Guest, Conversation
 from .credentials import (cancel_requested, clear_cancel, read_token, sync_lock,
                            write_sync_diagnostic, write_sync_progress)
 from .models import Connection, VendorBooking, VendorEvent, VendorGuest, VendorTour
@@ -418,7 +418,7 @@ def fetch_snapshot(client, should_cancel=cancel_requested, window="full", progre
         executor.shutdown(wait=wait_for_running, cancel_futures=True)
 
     try:
-        while next_index < total_events and len(pending) < workers \
+        while next_index < total_events and len(pending) < workers\
                 and not _cancelled(should_cancel, run_id):
             event = validated_events[next_index]
             future = executor.submit(client.bookings, identity(event, "id"))
@@ -442,7 +442,7 @@ def fetch_snapshot(client, should_cancel=cancel_requested, window="full", progre
                 completed += 1
                 progress("fetching", completed, total_events,
                          f"Loaded bookings for {validated_events[index]['title'][:120]}…")
-            while next_index < total_events and len(pending) < workers \
+            while next_index < total_events and len(pending) < workers\
                     and not _cancelled(should_cancel, run_id):
                 event = validated_events[next_index]
                 next_future = executor.submit(client.bookings, identity(event, "id"))
@@ -490,11 +490,11 @@ def get_contact(connection, row):
     if email and ("@" not in email or any(char.isspace() for char in email)):
         email = None
     # Exact contact details can share the inbox; never merge contacts by name.
-    contact = Contact.objects.filter(phone_number=phone).first() if phone else None
+    contact = Guest.objects.filter(phone_number=phone).first() if phone else None
     if not contact and email:
-        contact = Contact.objects.filter(email__iexact=email).first()
+        contact = Guest.objects.filter(email__iexact=email).first()
     if not contact:
-        contact = Contact.objects.create(
+        contact = Guest.objects.create(
             name=str(row.get("name") or "Guest")[:200],
             phone_number=phone,
             email=email,
@@ -549,7 +549,7 @@ def _resolve_event(connection, event, create_products):
         if mapped_event:
             mapped_event.departure = departure
             mapped_event.save(update_fields=["departure"])
-            Guest.objects.filter(vendorbooking__event=mapped_event).update(booked_tour=departure)
+            Booking.objects.filter(vendorbooking__event=mapped_event).update(booked_tour=departure)
         else:
             mapped_event = VendorEvent.objects.create(
                 connection=connection,
@@ -593,7 +593,7 @@ def apply_snapshot(connection, snapshot, should_cancel=cancel_requested, progres
             if not mapped:
                 contact = get_contact(connection, row)
                 first, _, last = contact.name.partition(" ")
-                guest = Guest.objects.create(contact=contact, first_name=first[:80], last_name=last[:80],
+                guest = Booking.objects.create(contact=contact, first_name=first[:80], last_name=last[:80],
                     email=contact.email, booked_tour=tour, imported=True,
                     attendance=attendance, adults=row["adults"], children=row["children"],
                     original_adults=row["adults"], original_children=row["children"])

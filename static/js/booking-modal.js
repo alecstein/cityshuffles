@@ -9,7 +9,6 @@
     const deleteButton = modal.querySelector('[data-booking-delete]');
     let opener;
     let saving = false;
-    let originalTour;
     let editingBooking = false;
     let originalData = {};
     function departureChanged() {
@@ -19,16 +18,13 @@
         for (const [field, key] of [['tour_date', 'date'], ['tour_time', 'time'], ['guide', 'guide']]) {
             modal.querySelector(`[data-context="${field}"]`).value = option.dataset[key] || '';
         }
-        modal.querySelector('[data-reschedule-notice]').hidden = !editingBooking || select.value === originalTour;
-        const moved = select.value !== originalTour;
-        for (const [field, value] of Object.entries(moved ? {vendor:'Manual/Walk-up', booking_code:'Assigned on save', event_id:select.value} : originalData)) {
-            if (['vendor', 'booking_code', 'event_id'].includes(field)) modal.querySelector(`[data-context="${field}"]`).value = value || '';
-        }
+        modal.querySelector('[data-context="vendor"]').value = originalData.vendor || '';
+        modal.querySelector('[data-context="booking_code"]').value = originalData.booking_code || '';
+        modal.querySelector('[data-context="event_id"]').value = originalData.event_id || (editingBooking ? '' : select.value);
     }
     form.elements.namedItem('tour')?.addEventListener('change', departureChanged);
 
     function fill(data, editing, preserveValues = false) {
-        originalTour = String(data.tour || '');
         originalData = data;
         editingBooking = editing;
         title.textContent = editing ? 'Edit booking' : 'Add booking';

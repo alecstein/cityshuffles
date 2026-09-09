@@ -2,8 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from bookings.models import Guest, Tour
-from messaging.models import Contact, Conversation, Message
+from bookings.models import Booking, Tour
+from messaging.models import Guest, Conversation, Message
 
 
 class MyToursTests(TestCase):
@@ -12,7 +12,7 @@ class MyToursTests(TestCase):
         self.other = get_user_model().objects.create_user(username="other")
         self.tour = Tour.objects.create(name="Owned tour", start_time=timezone.now(), responsible=self.owner)
         self.hidden = Tour.objects.create(name="Other tour", start_time=timezone.now(), responsible=self.other)
-        self.guest = Guest.objects.create(first_name="Guest", last_name="One", contact=Contact.objects.create(name="Guest One"), booked_tour=self.tour)
+        self.guest = Booking.objects.create(first_name="Guest", last_name="One", contact=Guest.objects.create(name="Guest One"), booked_tour=self.tour)
         self.client.force_login(self.owner)
 
     def test_only_assigned_tours_visible(self):
@@ -36,7 +36,7 @@ class MyToursTests(TestCase):
         self.assertEqual(self.client.post(reverse("mytours:guest_update", args=[self.guest.pk]), {"attendance": "absent"}).status_code, 404)
 
     def test_cancel_moves_row_to_bottom_and_restoring_reorders(self):
-        other_guest = Guest.objects.create(first_name="Zoe", last_name="Zulu", contact=Contact.objects.create(name="Zoe Zulu"), booked_tour=self.tour)
+        other_guest = Booking.objects.create(first_name="Zoe", last_name="Zulu", contact=Guest.objects.create(name="Zoe Zulu"), booked_tour=self.tour)
         url = reverse("mytours:guest_update", args=[self.guest.pk])
         response = self.client.post(url, {"attendance": "canceled"}, HTTP_HX_REQUEST="true")
         self.assertEqual([r["guest"].pk for r in response.context["guest_rows"]], [other_guest.pk, self.guest.pk])
@@ -90,7 +90,7 @@ class MyToursTests(TestCase):
         )
 
         self.assertContains(response, "View chat with Guest One")
-        self.assertNotContains(response, "Send welcome")
+        self.assertContains(response, "Send welcome")
 
     def test_unstarted_guest_has_welcome_and_chat_actions(self):
         self.guest.contact.phone_number = "+12125550005"
@@ -142,7 +142,7 @@ class MyToursTests(TestCase):
             },
         )
         self.assertRedirects(response, reverse("mytours:index") + f"?date={timezone.localdate(self.tour.start_time).isoformat()}&tour={self.tour.pk}")
-        guest = Guest.objects.get(first_name="Walk")
+        guest = Booking.objects.get(first_name="Walk")
         self.assertTrue(guest.is_manual)
         self.assertEqual((guest.adults, guest.children), (2, 1))
         self.assertEqual((guest.original_adults, guest.original_children), (2, 1))
@@ -157,7 +157,7 @@ class MyToursTests(TestCase):
             {"name": "Walk In", "phone_number": "", "email": "", "adults": 1, "children": 0},
         )
         self.assertEqual(response.status_code, 302)
-        guest = Guest.objects.get(first_name="Walk", last_name="In")
+        guest = Booking.objects.get(first_name="Walk", last_name="In")
         self.assertIsNone(guest.contact.phone_number)
         self.assertIsNone(guest.contact.email)
         self.assertFalse(guest.chat_started)
@@ -175,7 +175,7 @@ class MyToursTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("bookings:index"))
-        guest = Guest.objects.get(first_name="Dashboard")
+        guest = Booking.objects.get(first_name="Dashboard")
         self.assertEqual(guest.booked_tour_id, self.hidden.pk)
         self.assertTrue(guest.is_manual)
 
@@ -193,7 +193,7 @@ class MyToursTests(TestCase):
         self.assertEqual(self.guest.adults, 3)
         self.assertEqual(self.guest.original_adults, 2)
         self.assertTrue(self.guest.party_size_overridden)
-        for expected in (Guest.Feedback.UP, Guest.Feedback.DOWN, Guest.Feedback.NONE):
+        for expected in (Booking.Feedback.UP, Booking.Feedback.DOWN, Booking.Feedback.NONE):
             self.client.post(
                 reverse("mytours:guest_feedback", args=[self.guest.pk]),
                 HTTP_HX_REQUEST="true",
@@ -202,10 +202,10 @@ class MyToursTests(TestCase):
             self.assertEqual(self.guest.feedback, expected)
 
     def test_manual_booking_can_be_deleted_from_edit_menu(self):
-        guest = Guest.objects.create(
+        guest = Booking.objects.create(
             first_name="Manual",
             last_name="Guest",
-            contact=Contact.objects.create(name="Manual Guest", phone_number="+12125550125"),
+            contact=Guest.objects.create(name="Manual Guest", phone_number="+12125550125"),
             booked_tour=self.tour,
             imported=False,
             is_manual=True,
@@ -219,4 +219,4 @@ class MyToursTests(TestCase):
         )
         response = self.client.post(reverse("bookings:guest_delete", args=[guest.pk]))
         self.assertRedirects(response, reverse("bookings:index"))
-        self.assertFalse(Guest.objects.filter(pk=guest.pk).exists())
+        self.assertFalse(Booking.objects.filter(pk=guest.pk).exists())

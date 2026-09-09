@@ -6,8 +6,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 
-from bookings.models import Guest, Tour
-from messaging.models import Contact
+from bookings.models import Booking, Tour
+from messaging.models import Guest
 from messaging.services import SendResult
 from message_templates.models import MessageTemplate
 from .models import ThankYouAction
@@ -19,7 +19,7 @@ class GroupMessagesTests(TestCase):
         self.user = get_user_model().objects.create_user(username="group-guide", first_name="Jon")
         self.client.force_login(self.user)
         self.tour = Tour.objects.create(name="Test tour", start_time=timezone.now(), responsible=self.user)
-        self.guest = Guest.objects.create(first_name="Amy", booked_tour=self.tour, contact=Contact.objects.create(name="Amy", phone_number="+12125550101"), imported=True)
+        self.guest = Booking.objects.create(first_name="Amy", booked_tour=self.tour, contact=Guest.objects.create(name="Amy", phone_number="+12125550101"), imported=True)
         self.url = reverse("mytours:send_group_message", args=[self.tour.pk])
 
     def test_builtin_templates_editable_but_not_deletable(self):
@@ -72,7 +72,7 @@ class GroupMessagesTests(TestCase):
         self.assertFalse(retry_delivery(delivery))
 
     def test_status_changes_preserve_visible_order_until_reload(self):
-        other = Guest.objects.create(first_name="Zoe", booked_tour=self.tour, contact=Contact.objects.create(name="Zoe"), imported=True)
+        other = Booking.objects.create(first_name="Zoe", booked_tour=self.tour, contact=Guest.objects.create(name="Zoe"), imported=True)
         order = f"{self.guest.pk},{other.pk},"
         url = reverse("mytours:guest_update", args=[self.guest.pk])
         response = self.client.post(url, {"attendance": "canceled", "row_order": order}, HTTP_HX_REQUEST="true")

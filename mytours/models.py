@@ -25,8 +25,8 @@ class ThankYouAction(models.Model):
 
 class ThankYouDelivery(models.Model):
     action = models.ForeignKey(ThankYouAction, on_delete=models.CASCADE, related_name="deliveries")
-    contact = models.ForeignKey("messaging.Contact", on_delete=models.PROTECT)
-    guest = models.ForeignKey("bookings.Guest", null=True, on_delete=models.SET_NULL)
+    contact = models.ForeignKey("messaging.Guest", on_delete=models.PROTECT)
+    guest = models.ForeignKey("bookings.Booking", null=True, on_delete=models.SET_NULL)
     guest_name = models.CharField(max_length=200)
     body = models.TextField()
     email_body = models.TextField(null=True, blank=True)

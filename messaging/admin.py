@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import Contact, Conversation, Message
+from .models import Guest, Conversation, Message
 
 
-@admin.register(Contact)
-class ContactAdmin(admin.ModelAdmin):
+@admin.register(Guest)
+class GuestAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "phone_number",

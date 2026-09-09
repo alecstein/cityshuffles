@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-from bookings.models import Tour, Guest
-from messaging.models import Contact, Conversation, Message
+from bookings.models import Tour, Booking
+from messaging.models import Guest, Conversation, Message
 
 
 class Command(BaseCommand):
@@ -32,10 +32,10 @@ class Command(BaseCommand):
             for j in range(2):
                 first, last = names[i*2+j]
                 email = f"{first.lower()}.{last.lower()}.demo@example.com"
-                contact, _ = Contact.objects.get_or_create(email=email, defaults={"name": f"{first} {last}", "phone_number": f"+121255501{40+i*2+j}"})
-                if not Guest.objects.filter(contact=contact).exists():
+                contact, _ = Guest.objects.get_or_create(email=email, defaults={"name": f"{first} {last}", "phone_number": f"+121255501{40+i*2+j}"})
+                if not Booking.objects.filter(contact=contact).exists():
                     # Demo fixtures bypass welcome signals: never deliver real messages.
-                    Guest.objects.bulk_create([Guest(first_name=first, last_name=last, email=email, contact=contact, booked_tour=tour)])
+                    Booking.objects.bulk_create([Booking(first_name=first, last_name=last, email=email, contact=contact, booked_tour=tour)])
                 conversation, _ = Conversation.objects.get_or_create(contact=contact, channel="sms")
                 if j == 0 and not conversation.messages.exists():
                     message = Message.objects.create(conversation=conversation, direction="in", body="Hi! Looking forward to the tour. Where should we meet?", is_read=False)

@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib import messages as django_messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import (
@@ -14,10 +13,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from twilio.request_validator import RequestValidator
 
-from .forms import ContactEditForm, MessageForm, NewConversationForm
-from .models import Contact, Conversation, Message
+from .forms import MessageForm
+from .models import Guest, Conversation, Message
 from .services import send_message
 from message_templates.models import MessageTemplate
+from mytours.forms import BookingForm
+from mytours.services import booking_modal_data
 
 
 @login_required
@@ -27,7 +28,10 @@ def unread_badge(request):
 
 
 def _conversation_queryset(search=""):
-    queryset = Conversation.objects.select_related("contact")
+    from bookings.models import Booking
+    queryset = Conversation.objects.select_related("contact").filter(
+        Exists(Booking.objects.filter(contact_id=OuterRef("contact_id")))
+    )
     if search:
         matching_messages = Message.objects.filter(
             conversation=OuterRef("pk"),
@@ -94,7 +98,8 @@ def _conversation_rows(search=""):
             "has_messages": has_messages,
             "rank": candidate_rank,
         })
-        row["unread_count"] += conversation.unread_total
+        row["unread_count"] += max(conversation.unread_total, int(conversation.marked_unread))
+        row["is_finished"] = row.get("is_finished", True) and conversation.status == Conversation.Status.CLOSED
         if candidate_rank < row["rank"]:
             row.update({
                 "conversation": conversation,
@@ -107,6 +112,7 @@ def _conversation_rows(search=""):
     return sorted(
         grouped.values(),
         key=lambda row: (
+            0 if row["unread_count"] else 1,
             0 if row["has_messages"] else 1,
             -row["activity"].timestamp(),
             -row["conversation"].pk,
@@ -114,7 +120,12 @@ def _conversation_rows(search=""):
     )
 
 
-def _mark_read(conversation):
+def _mark_read(conversation, *, explicit=False):
+    if conversation.marked_unread and not explicit:
+        return
+    if explicit:
+        Conversation.objects.filter(pk=conversation.pk).update(marked_unread=False)
+        conversation.marked_unread = False
     conversation.messages.filter(
         direction=Message.Direction.INCOMING,
         is_read=False,
@@ -158,7 +169,7 @@ def _channel_tabs(selected):
                 "label": label,
                 "conversation": conversation,
                 "available": available_channels[value],
-                "unread_count": conversation.unread_total if conversation else 0,
+                "unread_count": max(conversation.unread_total, int(conversation.marked_unread)) if conversation else 0,
                 "is_active": conversation == selected,
             }
         )
@@ -166,11 +177,25 @@ def _channel_tabs(selected):
 
 
 def _conversation_context(selected, **extra):
-    templates = []
-    for template in MessageTemplate.objects.filter(is_active=True):
-        template.channel_body = template.body
-        if template.channel_body.strip():
-            templates.append(template)
+    bookings = list(selected.contact.bookings.select_related(
+        "booked_tour__responsible",
+    ).order_by("-booked_tour__start_time", "-pk"))
+    today = timezone.localdate()
+    current_bookings = [booking for booking in bookings
+                        if booking.attendance != "canceled"
+                        and timezone.localtime(booking.booked_tour.start_time).date() >= today]
+    for booking in current_bookings:
+        booking.modal_data = booking_modal_data(booking.booked_tour, booking)
+    history = [
+        booking for booking in bookings
+        if booking not in current_bookings
+        and booking.attendance in {"expected", "present"}
+    ]
+    templates = [
+        template
+        for template in MessageTemplate.objects.filter(is_active=True)
+        if template.body.strip()
+    ]
     template_values = {
         "guest_name": selected.contact.name,
         "guest_first_name": (selected.contact.name or "").split(" ", 1)[0],
@@ -178,37 +203,29 @@ def _conversation_context(selected, **extra):
         "tour_name": "",
         "booking_time": "",
     }
-    try:
-        from bookings.models import Guest
-
-        guest = (
-            Guest.objects
-            .filter(contact=selected.contact)
-            .select_related("booked_tour__responsible")
-            .order_by("-booked_tour__start_time", "-pk")
-            .first()
-        )
-        if guest:
-            template_values.update({
-                "guest_name": guest.full_name,
-                "guest_first_name": guest.first_name,
-                "tour_name": guest.booked_tour.name,
-                "booking_time": timezone.localtime(guest.booked_tour.start_time).strftime("%b %-d, %-I:%M %p"),
-                "guide_first_name": (
-                    guest.booked_tour.responsible.first_name
-                    if guest.booked_tour.responsible else ""
-                ),
-            })
-    except (AttributeError, ValueError):
-        # A conversation may exist before it is linked to a booking.
-        pass
+    # Product decision deferred: template context when several bookings exist.
+    booking = bookings[0] if bookings else None
+    if booking:
+        template_values.update({
+            "guest_name": booking.full_name,
+            "guest_first_name": booking.first_name,
+            "tour_name": booking.booked_tour.name,
+            "booking_time": timezone.localtime(booking.booked_tour.start_time).strftime("%b %-d, %-I:%M %p"),
+            "guide_first_name": (
+                booking.booked_tour.responsible.first_name
+                if booking.booked_tour.responsible else ""
+            ),
+        })
 
     return {
         "selected": selected,
+        "current_bookings": sorted(current_bookings, key=lambda booking: booking.booked_tour.start_time),
+        "booking_history": history,
+        "is_finished": not selected.contact.conversations.filter(status=Conversation.Status.OPEN).exists(),
         "channel_tabs": _channel_tabs(selected),
-        "contact_form": ContactEditForm(instance=selected.contact),
         "message_templates": templates,
         "template_values": template_values,
+        "booking_form": BookingForm(),
         **extra,
     }
 
@@ -222,28 +239,19 @@ def inbox(request):
     selected_id = request.GET.get("conversation")
     if selected_id:
         selected = get_object_or_404(_conversation_queryset(), pk=selected_id)
-    else:
+    elif request.GET.get("no_selection") != "1":
         selected = conversations.first()
 
     if selected:
-        _mark_read(selected)
+        _mark_read(selected, explicit=True)
 
     context = {
-        "conversations": conversations,
         "conversation_rows": _conversation_rows(conversation_search),
         "conversation_search": conversation_search,
         "selected": selected,
-        "new_conversation_form": NewConversationForm(),
     }
     if selected:
         context.update(_conversation_context(selected, message_form=MessageForm()))
-    else:
-        context.update({
-            "channel_tabs": [],
-            "contact_form": None,
-            "message_form": MessageForm(),
-            "message_templates": MessageTemplate.objects.filter(is_active=True),
-        })
     return render(request, "messaging/inbox.html", context)
 
 
@@ -265,7 +273,7 @@ def conversation_list(request):
 @login_required
 def conversation(request, pk):
     selected = get_object_or_404(_conversation_queryset(), pk=pk)
-    _mark_read(selected)
+    _mark_read(selected, explicit=True)
 
     return render(
         request,
@@ -346,26 +354,11 @@ def send(request, pk):
 
 @require_POST
 @login_required
-def edit_contact(request, pk):
-    selected = get_object_or_404(_conversation_queryset(), pk=pk)
-    form = ContactEditForm(request.POST, instance=selected.contact)
-    if form.is_valid():
-        form.save()
-        if request.headers.get("HX-Request"):
-            return HttpResponse(headers={"HX-Refresh": "true"})
-        return redirect(f"{reverse('messaging:inbox')}?conversation={selected.pk}")
-    return render(request, "messaging/partials/conversation_panel.html",
-                  _conversation_context(selected, message_form=MessageForm(),
-                                        contact_form=form, contact_edit_open=True))
-
-
-@require_POST
-@login_required
 def open_channel(request, contact_pk, channel):
     if channel not in {value for value, _label in Conversation.Channel.choices}:
         return HttpResponseBadRequest("Unknown messaging channel.")
 
-    contact = get_object_or_404(Contact, pk=contact_pk)
+    contact = get_object_or_404(Guest.objects.filter(bookings__isnull=False).distinct(), pk=contact_pk)
     if not _channel_available(contact, channel):
         return HttpResponseBadRequest("Contact information is required for this channel.")
 
@@ -380,46 +373,25 @@ def open_channel(request, contact_pk, channel):
 
 @require_POST
 @login_required
-def new_conversation(request):
-    form = NewConversationForm(request.POST)
-
-    if not form.is_valid():
-        django_messages.error(request, "Please check the new-conversation fields.")
-        return redirect("messaging:inbox")
-
-    phone = form.cleaned_data["phone_number"] or None
-    email = form.cleaned_data["email"] or None
-    name = form.cleaned_data["name"].strip() or email or phone
-    channel = form.cleaned_data["channel"]
-
-    lookup = {"phone_number": phone} if phone else {"email": email}
-    contact, created = Contact.objects.get_or_create(
-        defaults={"name": name, "phone_number": phone, "email": email},
-        **lookup,
-    )
-
-    if not created:
-        changed_fields = []
-        if name and contact.name != name:
-            contact.name = name
-            changed_fields.append("name")
-        if phone and contact.phone_number != phone:
-            contact.phone_number = phone
-            changed_fields.append("phone_number")
-        if email and contact.email != email:
-            contact.email = email
-            changed_fields.append("email")
-        if changed_fields:
-            contact.save(update_fields=changed_fields)
-
-    conversation_obj, _ = Conversation.objects.get_or_create(
-        contact=contact,
-        channel=channel,
-    )
-
-    return redirect(
-        f"{reverse('messaging:inbox')}?conversation={conversation_obj.pk}"
-    )
+@transaction.atomic
+def interaction(request, pk):
+    selected = get_object_or_404(_conversation_queryset(), pk=pk)
+    channels = Conversation.objects.filter(contact=selected.contact)
+    action = request.POST.get("action")
+    if action == "unread":
+        channels.update(status=Conversation.Status.OPEN)
+        Conversation.objects.filter(pk=selected.pk).update(marked_unread=True)
+        return redirect(f"{reverse('messaging:inbox')}?no_selection=1")
+    if action == "finish":
+        channels.update(status=Conversation.Status.CLOSED, marked_unread=False)
+        Message.objects.filter(
+            conversation__contact=selected.contact, direction=Message.Direction.INCOMING,
+        ).update(is_read=True)
+    elif action == "reopen":
+        channels.update(status=Conversation.Status.OPEN)
+    else:
+        return HttpResponseBadRequest("Unknown interaction action.")
+    return redirect(f"{reverse('messaging:inbox')}?conversation={selected.pk}")
 
 
 def _twilio_request_is_valid(request):
@@ -463,7 +435,7 @@ def twilio_inbound(request):
     )
     phone_number = _strip_channel_prefix(sender)
 
-    contact, _ = Contact.objects.get_or_create(
+    contact, _ = Guest.objects.get_or_create(
         phone_number=phone_number,
         defaults={"name": phone_number},
     )

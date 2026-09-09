@@ -18,7 +18,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from messaging.models import Contact, Conversation, Message
+from messaging.models import Guest, Conversation, Message
 
 from .credentials import read_gmail_refresh_token, sync_lock
 from .models import Connection
@@ -238,9 +238,9 @@ def _store_inbound(message_id, raw):
     provider_id = _inbound_provider_id(message_id)
     if Message.objects.filter(provider_sid=provider_id).exists():
         return False
-    contact = Contact.objects.filter(email__iexact=sender_email).first()
+    contact = Guest.objects.filter(email__iexact=sender_email).first()
     if not contact:
-        contact = Contact.objects.create(
+        contact = Guest.objects.create(
             name=_decode_header(sender_name)[:200] or sender_email,
             email=sender_email,
         )
@@ -259,7 +259,7 @@ def _store_inbound(message_id, raw):
     )
     conversation.last_message_at = message.created_at
     conversation.save(update_fields=["last_message_at"])
-    Contact.objects.filter(pk=contact.pk).update(
+    Guest.objects.filter(pk=contact.pk).update(
         last_inbound_channel=Conversation.Channel.EMAIL,
         last_inbound_at=timezone.now(),
     )

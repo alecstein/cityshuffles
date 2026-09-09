@@ -3,10 +3,10 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from messaging.models import Contact, Conversation, Message
+from messaging.models import Guest, Conversation, Message
 from integrations.models import Connection, VendorBooking, VendorEvent
 
-from .models import Guest, Guide, Tour
+from .models import Booking, Guide, Tour
 from .services import send_welcome_for_guest
 
 
@@ -22,7 +22,7 @@ class BookingDashboardTests(TestCase):
             name="Test Tour",
             start_time=timezone.now(),
         )
-        contact = Contact.objects.create(
+        contact = Guest.objects.create(
             name="Taylor Guest",
             phone_number="+12125550001",
         )
@@ -36,7 +36,7 @@ class BookingDashboardTests(TestCase):
             direction=Message.Direction.INCOMING,
             body="Hello from the tour guest",
         )
-        Guest.objects.create(
+        Booking.objects.create(
             first_name="Taylor",
             last_name="Guest",
             email="taylor@example.com",
@@ -65,7 +65,7 @@ class BookingDashboardTests(TestCase):
         self.assertNotContains(response, "A quick view of who is joining each tour.")
 
     def test_dashboard_unread_count_includes_all_channels(self):
-        guest = Guest.objects.get(contact=self.conversation.contact)
+        guest = Booking.objects.get(contact=self.conversation.contact)
         email = Conversation.objects.create(contact=guest.contact, channel=Conversation.Channel.EMAIL)
         Message.objects.create(conversation=email, direction=Message.Direction.INCOMING, body="Unread email", is_read=False)
         self.assertEqual(guest.unread_count, 2)
@@ -77,7 +77,7 @@ class BookingDashboardTests(TestCase):
         self.assertContains(response, 'class="chat-count-badge">1</span>', html=False)
 
     def test_dashboard_attendance_can_be_toggled(self):
-        guest = Guest.objects.get(contact=self.conversation.contact)
+        guest = Booking.objects.get(contact=self.conversation.contact)
         response = self.client.post(
             reverse("bookings:guest_attendance_update", args=[guest.pk]),
             {"attendance": "present"},
@@ -85,11 +85,11 @@ class BookingDashboardTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         guest.refresh_from_db()
-        self.assertEqual(guest.attendance, Guest.Attendance.PRESENT)
+        self.assertEqual(guest.attendance, Booking.Attendance.PRESENT)
         self.assertContains(response, "is-checked")
 
     def test_guest_information_can_be_updated(self):
-        guest = Guest.objects.get(email="taylor@example.com")
+        guest = Booking.objects.get(email="taylor@example.com")
         response = self.client.post(
             reverse("bookings:guest_update", args=[guest.pk]),
             {
@@ -114,8 +114,8 @@ class BookingDashboardTests(TestCase):
         self.assertEqual((guest.original_adults, guest.original_children), (1, 0))
 
     def test_edit_contact_collision_is_validation_error_and_preserves_guest(self):
-        Contact.objects.create(name="Someone Else", phone_number="+12125550999")
-        guest = Guest.objects.get(email="taylor@example.com")
+        Guest.objects.create(name="Someone Else", phone_number="+12125550999")
+        guest = Booking.objects.get(email="taylor@example.com")
         response = self.client.post(reverse("bookings:guest_update", args=[guest.pk]), {
             "name": "Changed", "phone_number": "+12125550999", "email": "", "adults": 2, "children": 0,
         }, HTTP_ACCEPT="application/json")
@@ -124,23 +124,23 @@ class BookingDashboardTests(TestCase):
         guest.refresh_from_db()
         self.assertEqual(guest.full_name, "Taylor Guest")
 
-    def test_edit_prefills_shared_modal_and_requires_manual_flag_for_delete(self):
-        guest = Guest.objects.get(email="taylor@example.com")
+    def test_dashboard_prefills_shared_edit_modal_and_requires_manual_flag_for_delete(self):
+        guest = Booking.objects.get(email="taylor@example.com")
         guest.special_requests = "Allergic to nuts"
         guest.save(update_fields=["special_requests"])
-        response = self.client.get(reverse("bookings:guest_edit", args=[guest.pk]))
-        self.assertTemplateUsed(response, "mytours/partials/add_booking_form.html")
+        response = self.client.get(reverse("bookings:index"))
         self.assertContains(response, "Allergic to nuts")
+        self.assertContains(response, f'data-action="{reverse("bookings:guest_update", args=[guest.pk])}"')
         self.assertEqual(self.client.post(reverse("bookings:guest_delete", args=[guest.pk])).status_code, 404)
 
     def test_welcome_uses_sms_when_phone_is_available(self):
-        guest = Guest.objects.get(email="taylor@example.com")
+        guest = Booking.objects.get(email="taylor@example.com")
 
         send_welcome_for_guest(guest.pk)
 
         guest.refresh_from_db()
         self.assertEqual(guest.welcome_channel, Conversation.Channel.SMS)
-        self.assertEqual(guest.welcome_status, Guest.WelcomeStatus.LOCAL)
+        self.assertEqual(guest.welcome_status, Booking.WelcomeStatus.LOCAL)
         self.assertIsNotNone(guest.welcome_sent_at)
 
     def test_new_vendor_booking_starts_conversation_and_sends_welcome(self):
@@ -150,11 +150,11 @@ class BookingDashboardTests(TestCase):
             external_id="event-1",
             departure=self.tour,
         )
-        contact = Contact.objects.create(
+        contact = Guest.objects.create(
             name="New Vendor Guest",
             phone_number="+12125550006",
         )
-        guest = Guest.objects.create(
+        guest = Booking.objects.create(
             first_name="New Vendor",
             last_name="Guest",
             contact=contact,
@@ -203,10 +203,10 @@ class BookingDashboardTests(TestCase):
             external_id="freetour-event-1",
             departure=self.tour,
         )
-        guest = Guest.objects.create(
+        guest = Booking.objects.create(
             first_name="Free",
             last_name="Tour Guest",
-            contact=Contact.objects.create(
+            contact=Guest.objects.create(
                 name="Free Tour Guest",
                 phone_number="+12125550007",
             ),
@@ -231,10 +231,10 @@ class BookingDashboardTests(TestCase):
             external_id="freetour-event-1",
             departure=self.tour,
         )
-        guest = Guest.objects.create(
+        guest = Booking.objects.create(
             first_name="Open",
             last_name="Chat",
-            contact=Contact.objects.create(
+            contact=Guest.objects.create(
                 name="Open Chat",
                 email="open-chat@example.com",
             ),
@@ -273,10 +273,10 @@ class BookingDashboardTests(TestCase):
             external_id="freetour-event-1",
             departure=self.tour,
         )
-        guest = Guest.objects.create(
+        guest = Booking.objects.create(
             first_name="Ignored",
             last_name="Guest",
-            contact=Contact.objects.create(name="Ignored Guest"),
+            contact=Guest.objects.create(name="Ignored Guest"),
             booked_tour=self.tour,
         )
         vendor_booking = VendorBooking.objects.create(
@@ -304,13 +304,13 @@ class BookingDashboardTests(TestCase):
         self.assertContains(response, "No new bookings right now.")
 
     def test_chat_action_depends_on_contact_details_and_messages(self):
-        no_contact = Guest.objects.create(
+        no_contact = Booking.objects.create(
             first_name="No",
             last_name="Contact",
-            contact=Contact.objects.create(name="No Contact"),
+            contact=Guest.objects.create(name="No Contact"),
             booked_tour=self.tour,
         )
-        empty_chat_contact = Contact.objects.create(
+        empty_chat_contact = Guest.objects.create(
             name="Empty Chat",
             phone_number="+12125550003",
         )
@@ -318,7 +318,7 @@ class BookingDashboardTests(TestCase):
             contact=empty_chat_contact,
             channel=Conversation.Channel.SMS,
         )
-        empty_chat_guest = Guest.objects.create(
+        empty_chat_guest = Booking.objects.create(
             first_name="Empty",
             last_name="Chat",
             contact=empty_chat_contact,
@@ -338,14 +338,14 @@ class BookingDashboardTests(TestCase):
         )
         response = self.client.get(reverse("bookings:index"))
         self.assertContains(response, 'View chat with Empty Chat')
-        self.assertNotContains(response, 'Send welcome to Empty Chat')
+        self.assertContains(response, 'Send welcome to Empty Chat')
 
     def test_start_chat_creates_welcome_for_existing_guest_without_messages(self):
-        contact = Contact.objects.create(
+        contact = Guest.objects.create(
             name="New Chat Guest",
             phone_number="+12125550004",
         )
-        guest = Guest.objects.create(
+        guest = Booking.objects.create(
             first_name="New Chat",
             last_name="Guest",
             contact=contact,

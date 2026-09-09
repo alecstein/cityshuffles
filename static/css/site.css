@@ -28,8 +28,6 @@ button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
 }
 
 .channel-unavailable { width: 14px; height: 14px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; }
-.new-conversation { margin: 0; align-self: center; }
-.new-conversation > summary { display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; }
 .messenger-page-header { align-items: center; }
 .guest-chat-icon { background: white; border: 1px solid #c9d9d2; }
 .guest-chat-icon.chat-started, .guest-chat-icon.chat-started:hover { background: var(--accent); color: white; }
@@ -46,8 +44,9 @@ button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
 .guest-vendor { font-size: .72rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
 .guest-identity { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
 .guest-identity-name { display: flex; align-items: center; gap: .05rem; min-width: 0; }
-.guest-identity .edit-guest-button { flex-shrink:0; }
 .guest-identity .guest-vendor { line-height:1.2; }
+.guest-profile-link { color: inherit; text-decoration: none; }
+.guest-profile-link:hover { color: var(--accent); text-decoration: underline; }
 .tour-detail-link { color:inherit; text-decoration:none; }
 .tour-detail-link:hover { color:var(--accent); text-decoration:underline; }
 .guest-identity .guest-vendor { margin-left: 0; white-space: normal; }
@@ -563,6 +562,9 @@ button:hover,
     margin-left: auto;
     flex-shrink: 0;
 }
+.guest-booking-edit-action { display: inline-flex; align-items: center; flex: 0 0 auto; }
+.guest-row > .guest-booking-edit-action { margin-left: auto; }
+.guest-row > .guest-booking-edit-action + .guest-actions { margin-left: 0; }
 
 .guest-row-main {
     display: inline-flex;
@@ -847,6 +849,7 @@ button:hover,
     align-items: center;
     justify-content: flex-end;
     gap: .55rem;
+    flex-wrap: nowrap;
 }
 
 .new-booking-ignore-form {
@@ -854,15 +857,87 @@ button:hover,
     margin: 0 auto 0 0 !important;
 }
 
-.new-booking-actions > .new-booking-chat-action,
-.new-booking-actions > .new-booking-chat-form,
-.new-booking-actions > a.new-booking-chat-action {
+.new-booking-edit-action { display: inline-flex; align-items: center; flex: 0 0 auto; order: 2; }
+
+.new-booking-actions > .guest-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    width: max-content;
     order: 3;
 }
 
-.new-booking-actions > .new-booking-welcome-action,
-.new-booking-actions > .new-booking-welcome-form {
-    order: 2;
+.new-booking-actions > .guest-actions > .chat-action-form {
+    display: flex;
+    flex: 0 0 auto;
+}
+
+.guest-directory-search {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    max-width: 680px;
+    margin-bottom: 1rem;
+}
+.guest-directory-search label { flex: 1; }
+.guest-directory-search input { width: 100%; padding: .7rem .8rem; border: 1px solid var(--border); border-radius: 7px; }
+.guest-directory-list { display: grid; gap: .6rem; }
+.guest-directory-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(150px, .8fr) minmax(200px, 1.2fr) auto;
+    gap: .65rem 1rem;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    text-decoration: none;
+}
+.guest-directory-row:hover { border-color: #acc4b9; background: var(--accent-soft); }
+.guest-directory-row span, .guest-directory-row small { color: var(--muted); overflow-wrap: anywhere; }
+.guest-profile-header { align-items: flex-end; }
+.guest-profile-header h1 { margin-bottom: 0; }
+.guest-details-link { color: inherit; text-decoration: none; }
+.guest-details-link:hover { color: var(--accent); text-decoration: underline; }
+.guest-profile-layout { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); gap: 1rem; align-items: start; }
+.guest-profile-sidebar { display: grid; gap: .75rem; }
+.guest-booking-sections { display: grid; gap: 1rem; }
+.guest-profile-card { padding: 1.1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.guest-profile-card h2 { margin: 0 0 .85rem; font-size: 1.05rem; }
+.guest-edit-link { padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; }
+.guest-edit-link:hover { background: transparent; color: var(--accent); filter: none !important; }
+.guest-profile-form label { display: block; margin-bottom: .75rem; font-size: .84rem; font-weight: 600; }
+.guest-profile-form input { display: block; width: 100%; margin-top: .3rem; padding: .65rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+.guest-profile-form input[readonly] { border-color: #ddddda; background: #eeeeeb; pointer-events: none; }
+.guest-profile-form-actions { display: flex; align-items: center; gap: .75rem; }
+.guest-profile-form-actions[hidden] { display: none; }
+.guest-open-chat {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    width: max-content;
+    padding: .55rem .8rem;
+    border: 1px solid var(--accent);
+    border-radius: 7px;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    font-size: .82rem;
+    font-weight: 700;
+}
+.guest-open-chat:hover { background: #174b3f; color: white; }
+.guest-open-chat svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.guest-profile-booking-list { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+.guest-profile-booking-list li { display: grid; gap: .2rem; padding-top: .7rem; border-top: 1px solid var(--border); }
+.guest-profile-booking-list li:first-child { padding-top: 0; border-top: 0; }
+.guest-profile-booking-list span { color: var(--muted); font-size: .82rem; }
+@media (max-width: 760px) {
+    .guest-directory-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .guest-directory-row span:nth-of-type(1), .guest-directory-row span:nth-of-type(2) { grid-column: 1; }
+    .guest-directory-row small { grid-column: 2; grid-row: 1 / span 3; }
+    .guest-profile-layout { grid-template-columns: minmax(0, 1fr); }
+    .guest-profile-header { align-items: flex-start; }
 }
 
 .jump-link-ignore,
@@ -870,33 +945,6 @@ button:hover,
     border-color: #d8c5c5;
     background: #fff8f8;
     color: #8d4c4c;
-}
-
-.my-guest-cell > .guest-contact-action.guest-welcome-action {
-    width: auto;
-    flex: 0 1 auto;
-}
-
-.guest-chat-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--guest-action-gap);
-}
-
-.guest-chat-actions .chat-action-form {
-    margin: 0;
-}
-
-.my-guest-cell > .guest-contact-action.guest-welcome-action .chat-action-form {
-    width: auto;
-    height: auto;
-}
-
-.my-guest-cell > .guest-contact-action.guest-welcome-action .welcome-button {
-    width: auto;
-    height: var(--compact-control-size);
-    min-height: var(--compact-control-size);
-    flex-basis: auto;
 }
 
 .new-bookings-summary {
@@ -1231,62 +1279,6 @@ button:hover,
     border: 0;
 }
 
-.new-conversation {
-    position: relative;
-}
-
-.new-conversation summary {
-    list-style: none;
-}
-
-.new-conversation summary::-webkit-details-marker {
-    display: none;
-}
-
-.new-conversation[open] .new-conversation-form {
-    display: block;
-}
-
-.new-conversation-form {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    right: 0;
-    z-index: 20;
-    width: min(340px, calc(100vw - 2rem));
-    padding: 1rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
-}
-
-.new-conversation-form p {
-    margin: 0 0 0.8rem;
-}
-
-.new-conversation-form label {
-    display: block;
-    margin-bottom: 0.25rem;
-    font-size: 0.85rem;
-    font-weight: 650;
-}
-
-.new-conversation-form input,
-.new-conversation-form select {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 0.55rem 0.65rem;
-    background: white;
-}
-
-.new-conversation-form .helptext {
-    display: block;
-    margin-top: 0.25rem;
-    color: var(--muted);
-    font-size: 0.75rem;
-}
-
 .messenger-shell {
     display: grid;
     grid-template-columns: clamp(118px, 32%, 330px) minmax(0, 1fr);
@@ -1431,7 +1423,8 @@ button:hover,
 }
 
 .conversation-meta {
-    margin-top: 0.18rem;
+    margin-top: 0.1rem;
+    margin-bottom: 0.4rem;
     color: var(--muted);
     font-size: 0.78rem;
 }
@@ -1518,19 +1511,6 @@ button:hover,
 
 .contact-heading { display: flex; align-items: center; gap: 0.4rem; position: relative; min-width: 0; }
 .contact-heading h2 { min-width: 0; overflow-wrap: anywhere; }
-.contact-editor summary { list-style: none; cursor: pointer; }
-.contact-editor summary::-webkit-details-marker { display: none; }
-.contact-edit-form {
-    position: absolute; top: 100%; left: 0; z-index: 25;
-    width: min(360px, 100%); padding: 1rem;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; box-shadow: var(--shadow);
-}
-.contact-edit-form p { margin: 0 0 0.75rem; }
-.contact-edit-form label { display: block; font-size: 0.8rem; margin-bottom: 0.25rem; }
-.contact-edit-form input { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 5px; }
-.contact-edit-form .errorlist { color: var(--danger); font-size: 0.8rem; }
-.contact-edit-form .helptext { display: block; margin-top: .3rem; color: #72726d; font-size: .75rem; line-height: 1.4; }
 .booking-date-group { display: grid; gap: .75rem; }
 .booking-date-group + .booking-date-group { margin-top: 1rem; }
 .booking-date-heading {
@@ -1802,4 +1782,19 @@ button:hover,
     background: #f8e6e6;
     color: var(--danger);
     font-size: 0.85rem;
+}
+
+/* Final hover treatment so later component rules cannot suppress feedback. */
+button:not(:disabled),
+a.button,
+summary.button,
+a.guest-chat-icon {
+    transition: filter .12s ease;
+}
+
+button:not(:disabled):hover,
+a.button:hover,
+summary.button:hover,
+a.guest-chat-icon:hover {
+    filter: brightness(.88) !important;
 }

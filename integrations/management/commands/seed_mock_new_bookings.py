@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from bookings.models import Guest
-from messaging.models import Contact, Conversation
+from bookings.models import Booking
+from messaging.models import Guest, Conversation
 
 from integrations.models import Connection, VendorBooking, VendorEvent, VendorGuest
 
@@ -42,7 +42,7 @@ class Command(BaseCommand):
             external_booking_id = f"mock-gw-booking-{index + 1}"
             external_guest_id = f"mock-gw-guest-{index + 1}"
             contact_lookup = {"phone_number": phone} if phone else {"email": email}
-            contact, _ = Contact.objects.get_or_create(
+            contact, _ = Guest.objects.get_or_create(
                 defaults={
                     "name": f"{first_name} {last_name}",
                     "phone_number": phone,
@@ -82,7 +82,7 @@ class Command(BaseCommand):
                 guest.original_adults = vendor_adults
                 guest.original_children = vendor_children
                 guest.welcome_channel = ""
-                guest.welcome_status = Guest.WelcomeStatus.PENDING
+                guest.welcome_status = Booking.WelcomeStatus.PENDING
                 guest.welcome_sent_at = None
                 guest.save(update_fields=[
                     "first_name", "last_name", "email", "contact",
@@ -91,7 +91,7 @@ class Command(BaseCommand):
                     "welcome_channel", "welcome_status", "welcome_sent_at",
                 ])
             else:
-                guest = Guest.objects.create(
+                guest = Booking.objects.create(
                     first_name=first_name,
                     last_name=last_name,
                     email=email,
